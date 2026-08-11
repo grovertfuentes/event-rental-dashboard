@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, AreaChart, PieChart, Pie, Cell, Legend
@@ -37,6 +37,162 @@ const COLORS = {
 };
 
 const CHART_COLORS = ["#7674B6", "#9997D0", "#16a34a", "#06b6d4", "#ec4899", "#ea580c", "#5C5A9E", "#64748b", "#dc2626", "#a3e635"];
+
+// ── Live data fetching ──────────────────────────────────────────────
+const GSP_SHEET_ID = "1FBUAn82wrX2fIjgRwWDqk1C8VES6dV_yhhuVQ9TihDI";
+const WPFORMS_SHEET_ID = "1JhCeTIUqMI23fhMzY-upoMc3nLimeJKWWp1LU9gwfmQ";
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { result.push(current); current = ""; }
+      else { current += ch; }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseCSV(text) {
+  const lines = text.split("\n").filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h.trim()] = (vals[i] || "").trim(); });
+    return obj;
+  });
+}
+
+function parseMoney(str) {
+  if (!str) return 0;
+  return parseFloat(String(str).replace(/[\$,]/g, "")) || 0;
+}
+
+function parseGSPDate(str) {
+  if (!str) return null;
+  const parts = str.split("/");
+  if (parts.length !== 3) return null;
+  return new Date(+parts[2], +parts[0] - 1, +parts[1]);
+}
+
+function sameDay(d1, d2) {
+  return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+}
+
+function getMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+async function fetchLiveGSPData() {
+  try {
+    const url = "https://docs.google.com/spreadsheets/d/" + GSP_SHEET_ID + "/gviz/tq?tqx=out:csv";
+    const resp = await fetch(url);
+    const text = await resp.text();
+    const rows = parseCSV(text);
+    if (!rows.length) return null;
+
+    const now = new Date();
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayDate = new Date(todayDate); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const thisMonday = getMonday(todayDate);
+    const lastMonday = new Date(thisMonday); lastMonday.setDate(lastMonday.getDate() - 7);
+    const currentYear = now.getFullYear();
+
+    function dayMetrics(rows, targetDate) {
+      let quotes = 0, contracts = 0, revenue = 0;
+      rows.forEach(r => {
+        const created = parseGSPDate(r["Date Created"]);
+        if (!created || !sameDay(created, targetDate)) return;
+        if (r["Status"] === "Quote Sent") { quotes++; revenue += parseMoney(r["Quote Total"]); }
+        if (r["Status"] === "Contract Signed") { contracts++; revenue += parseMoney(r["Contract Total"] || r["Quote Total"]); }
+      });
+      return { quotes, contracts, revenue };
+    }
+
+    const todayM = dayMetrics(rows, todayDate);
+    const yesterdayM = dayMetrics(rows, yesterdayDate);
+    const liveTodayData = { quotes: todayM.quotes, contracts: todayM.contracts, revenue: "$" + todayM.revenue.toLocaleString() };
+    const liveYesterdayData = { quotes: yesterdayM.quotes, contracts: yesterdayM.contracts, revenue: "$" + yesterdayM.revenue.toLocaleString() };
+
+    function buildWeek(monday) {
+      const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+      return days.map((name, i) => {
+        const d = new Date(monday); d.setDate(d.getDate() + i);
+        const m = dayMetrics(rows, d);
+        return { day: name, quotes: m.quotes, contracts: m.contracts };
+      });
+    }
+    const liveWeekData = buildWeek(thisMonday);
+
+    function weekTotalsFor(monday) {
+      const end = new Date(monday); end.setDate(end.getDate() + 6);
+      let quotes = 0, contracts = 0, revenue = 0;
+      rows.forEach(r => {
+        const created = parseGSPDate(r["Date Created"]);
+        if (!created || created < monday || created > end) return;
+        if (r["Status"] === "Quote Sent") { quotes++; revenue += parseMoney(r["Quote Total"]); }
+        if (r["Status"] === "Contract Signed") { contracts++; revenue += parseMoney(r["Contract Total"] || r["Quote Total"]); }
+      });
+      return { quotes, contracts, revenue: "$" + revenue.toLocaleString() };
+    }
+    const liveWeekTotals = weekTotalsFor(thisMonday);
+    const liveLastWeekTotals = weekTotalsFor(lastMonday);
+
+    const ytdRows = rows.filter(r => { const d = parseGSPDate(r["Date Created"]); return d && d.getFullYear() === currentYear; });
+    let totalSales = 0, totalPipeline = 0, earned = 0;
+    const clientSpend = {};
+    ytdRows.forEach(r => {
+      const amt = parseMoney(r["Contract Total"] || r["Quote Total"]);
+      if (r["Status"] === "Contract Signed") {
+        totalSales += amt;
+        const client = r["Client Name"] || "Unknown";
+        clientSpend[client] = (clientSpend[client] || 0) + amt;
+        const logDate = parseGSPDate(r["Logistics Start Date"]);
+        if (logDate && logDate <= todayDate) { earned += amt; }
+      }
+      totalPipeline += amt;
+    });
+
+    const liveTopClients = Object.entries(clientSpend).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, spend]) => ({ name, spend: "$" + spend.toLocaleString() }));
+    const statusCounts = { "Quote Sent": 0, "Contract Signed": 0, "Lost": 0, "New Project": 0 };
+    rows.forEach(r => { const s = r["Status"]; if (s in statusCounts) statusCounts[s]++; });
+
+    return {
+      todayData: liveTodayData, yesterdayData: liveYesterdayData,
+      weekData: liveWeekData, weekTotals: liveWeekTotals, lastWeekTotals: liveLastWeekTotals,
+      topClients2026: liveTopClients, earnedRevenue2026: "$" + earned.toLocaleString(),
+      totalSales2026: "$" + totalSales.toLocaleString(), totalPipeline2026: "$" + totalPipeline.toLocaleString(),
+      gspStatusCounts: statusCounts,
+    };
+  } catch (e) { console.error("fetchLiveGSPData error:", e); return null; }
+}
+
+async function fetchWPFormsCount() {
+  try {
+    const url = "https://docs.google.com/spreadsheets/d/" + WPFORMS_SHEET_ID + "/gviz/tq?tqx=out:csv";
+    const resp = await fetch(url);
+    const text = await resp.text();
+    return parseCSV(text).length;
+  } catch (e) { return 0; }
+}
+
+
 
 // ── Today's Data (May 10 — no GSP activity yet today) ──
 // Sources: Wishlists = placeholder, Forms = WPForms sheet (currently empty),
@@ -679,7 +835,23 @@ const getWeekRange = () => {
 
 const tabs = ["Overview", "Sales", "Marketing", "Geography", "Team"];
 
+
+const GSP_DEFAULTS = {
+  todayData, yesterdayData, weekData, weekTotals, lastWeekTotals,
+  topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
+};
+
 export default function Dashboard() {
+  const [liveData, setLiveData] = useState(null);
+  useEffect(() => {
+    fetchLiveGSPData().then(data => { if (data) setLiveData(data); });
+  }, []);
+
+  const {
+    todayData, yesterdayData, weekData, weekTotals, lastWeekTotals,
+    topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
+  } = liveData ?? GSP_DEFAULTS;
+
   const [activeTab, setActiveTab] = useState("Overview");
   const [monthRange, setMonthRange] = useState("all");
   const [mktPreset, setMktPreset] = useState("7d");
@@ -693,7 +865,7 @@ export default function Dashboard() {
   }, [monthRange]);
 
   const mktDates = useMemo(() => {
-    const today = "2026-05-09";
+    const today = new Date().toISOString().slice(0, 10);
     const sub = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
     if (mktPreset === "7d") return { from: sub(today, 6), to: today };
     if (mktPreset === "14d") return { from: sub(today, 13), to: today };
