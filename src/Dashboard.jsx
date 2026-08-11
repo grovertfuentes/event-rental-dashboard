@@ -853,82 +853,66 @@ const GSP_DEFAULTS = {
 };
 
 
+
+
 // ── Password Protection ──
-const PASSWORD_HASH = "R1JPVkVSVExPVkVTQ0xBVURF"; // base64 of the password
+const PW_CHECK = "R1JPVkVSVExPVkVTQ0xBVURF";
 
 function PasswordGate({ children }) {
-  const [authenticated, setAuthenticated] = useState(() => {
-    try { return sessionStorage.getItem("dashboard_auth") === "true"; } catch { return false; }
-  });
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(false);
-  const [shake, setShake] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState(false);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    try { if (sessionStorage.getItem("dash_auth") === "1") setOk(true); } catch(e) {}
+  }, []);
+
+  if (ok) return children;
+
+  const submit = (e) => {
     e.preventDefault();
-    if (btoa(password) === PASSWORD_HASH) {
-      setAuthenticated(true);
-      try { sessionStorage.setItem("dashboard_auth", "true"); } catch {}
+    if (btoa(pw) === PW_CHECK) {
+      setOk(true);
+      try { sessionStorage.setItem("dash_auth", "1"); } catch(e) {}
     } else {
-      setError(true);
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
+      setErr(true);
     }
   };
 
-  if (authenticated) return children;
+  const bg = "linear-gradient(135deg, #1B1A32 0%, #2D2B55 50%, #1B1A32 100%)";
+  const boxStyle = {
+    background: "rgba(255,255,255,0.07)",
+    borderRadius: 20, padding: "48px 40px", width: 380, textAlign: "center",
+    border: "1px solid rgba(255,255,255,0.12)",
+    boxShadow: "0 25px 60px rgba(0,0,0,0.4)",
+  };
+  const inputStyle = {
+    width: "100%", padding: "14px 16px", fontSize: 15, borderRadius: 10,
+    border: err ? "2px solid #ef4444" : "2px solid rgba(255,255,255,0.15)",
+    background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none",
+    boxSizing: "border-box",
+  };
+  const btnStyle = {
+    width: "100%", padding: 14, marginTop: 20, fontSize: 15, fontWeight: 600,
+    borderRadius: 10, border: "none", cursor: "pointer", color: "#fff",
+    background: "linear-gradient(135deg, #7674B6, #5C5A9E)",
+    boxShadow: "0 4px 15px rgba(118,116,182,0.4)",
+  };
 
   return (
     <PasswordGate>
-    <div style={{
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(135deg, #1B1A32 0%, #2D2B55 50%, #1B1A32 100%)",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        background: "rgba(255,255,255,0.07)", backdropFilter: "blur(20px)",
-        borderRadius: 20, padding: "48px 40px", width: 380, textAlign: "center",
-        border: "1px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 25px 60px rgba(0,0,0,0.4)",
-        animation: shake ? "shake 0.5s ease-in-out" : "fadeIn 0.6s ease-out",
-      }}>
-        <style>{`
-          @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px)} 75%{transform:translateX(10px)} }
-          @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes pulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
-        `}</style>
-        <img src={LOGO_URL} alt="Logo" style={{ height: 60, marginBottom: 24, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }} />
-        <h2 style={{ color: "#fff", margin: "0 0 8px", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>Business Dashboard</h2>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: bg, fontFamily: "Inter, -apple-system, sans-serif" }}>
+      <form onSubmit={submit} style={boxStyle}>
+        <img src={LOGO_URL} alt="Logo" style={{ height: 60, marginBottom: 24 }} />
+        <h2 style={{ color: "#fff", margin: "0 0 8px", fontSize: 22, fontWeight: 700 }}>Business Dashboard</h2>
         <p style={{ color: "rgba(255,255,255,0.5)", margin: "0 0 32px", fontSize: 14 }}>Enter password to continue</p>
-        <input
-          type="password" value={password}
-          onChange={(e) => { setPassword(e.target.value); setError(false); }}
-          placeholder="Password"
-          autoFocus
-          style={{
-            width: "100%", padding: "14px 16px", fontSize: 15, borderRadius: 10,
-            border: error ? "2px solid #ef4444" : "2px solid rgba(255,255,255,0.15)",
-            background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none",
-            boxSizing: "border-box", transition: "border-color 0.2s",
-          }}
-          onFocus={(e) => e.target.style.borderColor = error ? "#ef4444" : "#7674B6"}
-          onBlur={(e) => e.target.style.borderColor = error ? "#ef4444" : "rgba(255,255,255,0.15)"}
-        />
-        {error && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0" }}>Incorrect password</p>}
-        <button type="submit" style={{
-          width: "100%", padding: "14px", marginTop: 20, fontSize: 15, fontWeight: 600,
-          borderRadius: 10, border: "none", cursor: "pointer", color: "#fff",
-          background: "linear-gradient(135deg, #7674B6, #5C5A9E)",
-          boxShadow: "0 4px 15px rgba(118,116,182,0.4)", transition: "transform 0.15s, box-shadow 0.15s",
-        }}
-          onMouseOver={(e) => { e.target.style.transform = "translateY(-1px)"; e.target.style.boxShadow = "0 6px 20px rgba(118,116,182,0.5)"; }}
-          onMouseOut={(e) => { e.target.style.transform = "translateY(0)"; e.target.style.boxShadow = "0 4px 15px rgba(118,116,182,0.4)"; }}
-        >Sign In</button>
+        <input type="password" value={pw} onChange={(e) => { setPw(e.target.value); setErr(false); }} placeholder="Password" autoFocus style={inputStyle} />
+        {err && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0" }}>Incorrect password</p>}
+        <button type="submit" style={btnStyle}>Sign In</button>
       </form>
     </div>
   );
 }
-
 
 export default function Dashboard() {
   const [liveData, setLiveData] = useState(null);
@@ -1767,6 +1751,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-  </PasswordGate>
+    </PasswordGate>
   );
 }
