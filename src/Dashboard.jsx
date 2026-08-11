@@ -1,4 +1,4 @@
-HELLO_TEST_PASTEimport { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, AreaChart, PieChart, Pie, Cell, Legend
