@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+HELLO_TEST_PASTEimport { useState, useMemo, useEffect } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, AreaChart, PieChart, Pie, Cell, Legend
@@ -38,7 +38,7 @@ const COLORS = {
 
 const CHART_COLORS = ["#7674B6", "#9997D0", "#16a34a", "#06b6d4", "#ec4899", "#ea580c", "#5C5A9E", "#64748b", "#dc2626", "#a3e635"];
 
-// ── Live data fetching ──────────────────────────────────────────────
+// ââ Live data fetching ââââââââââââââââââââââââââââââââââââââââââââââ
 const GSP_SHEET_ID = "1FBUAn82wrX2fIjgRwWDqk1C8VES6dV_yhhuVQ9TihDI";
 const WPFORMS_SHEET_ID = "1JhCeTIUqMI23fhMzY-upoMc3nLimeJKWWp1LU9gwfmQ";
 
@@ -205,19 +205,19 @@ async function fetchWPFormsCount() {
 
 
 
-// ── Today's Data (May 10 — no GSP activity yet today) ──
+// ââ Today's Data (May 10 â no GSP activity yet today) ââ
 // Sources: Wishlists = placeholder, Forms = WPForms sheet (currently empty),
 // Quotes/Contracts/Sales = Master GSP Data "Date Created" column
 const todayData = {
-  wishlists: 0,    // Placeholder — no source connected yet
-  forms: 0,        // WPForms Spreadsheet — currently empty
+  wishlists: 0,    // Placeholder â no source connected yet
+  forms: 0,        // WPForms Spreadsheet â currently empty
   quotesCreated: 0, // GSP: rows with Date Created = 05/10/2026
   quotesSent: 0,   // GSP: rows with Last Quote Sent = 05/10/2026
   contracts: 0,    // GSP: Contract Signed with Date Created = today
   totalSales: 0,   // GSP: Quote Total for today's Contract Signed
 };
 
-// ── Yesterday's Data (May 9 — from GSP) ──
+// ââ Yesterday's Data (May 9 â from GSP) ââ
 const yesterdayData = {
   wishlists: 0,
   forms: 0,
@@ -227,7 +227,7 @@ const yesterdayData = {
   totalSales: 0,
 };
 
-// ── This week's data (Mon May 5 – Sun May 11, from GSP) ──
+// ââ This week's data (Mon May 5 â Sun May 11, from GSP) ââ
 // Quotes Created per day from GSP Date Created column (54 total this week)
 // Contracts Signed breakdown estimated from GSP data
 const weekData = [
@@ -252,7 +252,7 @@ const weekTotals = weekData.reduce(
   { wishlists: 0, forms: 0, quotesCreated: 0, quotesSent: 0, contracts: 0, sales: 0 }
 );
 
-// ── Last week's totals (no prior week data in current export) ──
+// ââ Last week's totals (no prior week data in current export) ââ
 const lastWeekTotals = {
   wishlists: 0,
   forms: 0,
@@ -262,7 +262,7 @@ const lastWeekTotals = {
   sales: 0,
 };
 
-// ── Historical Data ──
+// ââ Historical Data ââ
 const monthlyData = [
   { m: "Jan 23", revenue: 4660, count: 1, aov: 4660 },
   { m: "Feb 23", revenue: 2114, count: 8, aov: 264 },
@@ -387,7 +387,7 @@ const billingData = [
   { status: "Overpaid", revenue: 31698, count: 29 },
 ];
 
-// ── 2026 GSP Data (from Master GSP Sheet — Contract Signed only) ──
+// ââ 2026 GSP Data (from Master GSP Sheet â Contract Signed only) ââ
 // Top 5 clients filtered to Status = "Contract Signed" (actual customers)
 const topClients2026 = [
   { name: "Daniel Ledwith", spend: 3178, orders: 1, aov: 3178 },
@@ -406,7 +406,7 @@ const totalPipeline2026 = 13845;
 // Status breakdown
 const gspStatusCounts = { contractSigned: 22, quoteSent: 35, newProject: 7 };
 
-// ── Marketing Raw Daily Data (Windsor.ai — Apr 9 – May 9, 2026) ──
+// ââ Marketing Raw Daily Data (Windsor.ai â Apr 9 â May 9, 2026) ââ
 const GA4_DAILY = [
   { d:"2026-04-09", s:223, pv:860, u:126, nu:228, br:56.0, dur:183 },
   { d:"2026-04-10", s:178, pv:470, u:98, nu:173, br:62.4, dur:126 },
@@ -626,11 +626,11 @@ const computeMktMetrics = (fromStr, toStr) => {
     adsPrevCPC: adsPrv.clicks > 0 ? Math.round(adsPrv.spend / adsPrv.clicks * 100) / 100 : 0,
     sc: sumSC(scR), scPrev: sumSC(scP),
     sourcesPie, dailyChart,
-    dateLabel: `${new Date(fromStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(toStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+    dateLabel: `${new Date(fromStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })} â ${new Date(toStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
   };
 };
 
-// ── Formatters ──
+// ââ Formatters ââ
 const fmt = (n) => {
   if (n >= 1000000) return `$${(n / 1000000).toFixed(2)}M`;
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
@@ -640,7 +640,7 @@ const fmt = (n) => {
 const fmtFull = (n) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-// ── Components ──
+// ââ Components ââ
 const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency }) => {
   const numVal = isCurrency ? (typeof value === "number" ? value : parseFloat(String(value).replace(/[$,]/g, ""))) : value;
   const diff = numVal - compareValue;
@@ -665,7 +665,7 @@ const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color
           <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.text }}>{isCurrency ? fmtFull(numVal) : numVal}</span>
           {!isEqual && (
             <span style={{ fontSize: 13, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
-              {isUp ? "▲" : "▼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
+              {isUp ? "â²" : "â¼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
             </span>
           )}
         </div>
@@ -701,7 +701,7 @@ const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color
           <span style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{total}</span>
           {!isEqual && (
             <span style={{ fontSize: 12, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
-              {isUp ? "▲" : "▼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
+              {isUp ? "â²" : "â¼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
             </span>
           )}
         </div>
@@ -767,7 +767,7 @@ const SectionTitle = ({ children }) => (
   <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 20px" }}>{children}</h3>
 );
 
-// ── Brand Logos (inline SVG) ──
+// ââ Brand Logos (inline SVG) ââ
 const GA4Logo = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     <path d="M21.5 12c0 5.25-4.25 9.5-9.5 9.5S2.5 17.25 2.5 12 6.75 2.5 12 2.5 21.5 6.75 21.5 12z" fill="#F9AB00" opacity="0.15"/>
@@ -841,7 +841,7 @@ const getWeekRange = () => {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   const opts = { month: "short", day: "numeric" };
-  return `${monday.toLocaleDateString("en-US", opts)} – ${sunday.toLocaleDateString("en-US", opts)}, ${sunday.getFullYear()}`;
+  return `${monday.toLocaleDateString("en-US", opts)} â ${sunday.toLocaleDateString("en-US", opts)}, ${sunday.getFullYear()}`;
 };
 
 const tabs = ["Overview", "Sales", "Marketing", "Geography", "Team"];
@@ -856,14 +856,7 @@ const GSP_DEFAULTS = {
 
 
 export default function Dashboard() {
-  // ── Password Protection ──
-  const [dashAuth, setDashAuth] = useState(() => {
-    try { return sessionStorage.getItem("dash_auth") === "1"; } catch(e) { return false; }
-  });
-  const [dashPw, setDashPw] = useState("");
-  const [dashPwErr, setDashPwErr] = useState(false);
-
-  const [liveData, setLiveData] = useState(null);
+  // ââ Password Protection ââ  const [liveData, setLiveData] = useState(null);
   useEffect(() => {
     fetchLiveGSPData().then(data => { if (data) setLiveData(data); });
   }, []);
@@ -873,7 +866,14 @@ export default function Dashboard() {
     topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
   } = liveData ?? GSP_DEFAULTS;
 
-  const [activeTab, setActiveTab] = useState("Overview");
+    // ── Password Protection ──
+  const [dashAuth, setDashAuth] = useState(() => {
+    try { return sessionStorage.getItem("dash_auth") === "1"; } catch(e) { return false; }
+  });
+  const [dashPw, setDashPw] = useState("");
+  const [dashPwErr, setDashPwErr] = useState(false);
+
+const [activeTab, setActiveTab] = useState("Overview");
   const [monthRange, setMonthRange] = useState("all");
   const [mktPreset, setMktPreset] = useState("7d");
   const [mktFrom, setMktFrom] = useState("2026-05-03");
@@ -896,12 +896,36 @@ export default function Dashboard() {
 
   const mkt = useMemo(() => computeMktMetrics(mktDates.from, mktDates.to), [mktDates]);
 
-  return (
+  
+  // ── Auth Gate ──
+  if (!dashAuth) {
+    const checkPw = (e) => {
+      e.preventDefault();
+      if (btoa(dashPw) === "R1JPVkVSVExPVkVTQ0xBVURF") {
+        setDashAuth(true);
+        try { sessionStorage.setItem("dash_auth", "1"); } catch(ex) {}
+      } else { setDashPwErr(true); }
+    };
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #1B1A32 0%, #2D2B55 50%, #1B1A32 100%)", fontFamily: "Inter, -apple-system, sans-serif" }}>
+        <form onSubmit={checkPw} style={{ background: "rgba(255,255,255,0.07)", borderRadius: 20, padding: "48px 40px", width: 380, textAlign: "center", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 25px 60px rgba(0,0,0,0.4)" }}>
+          <img src={LOGO_URL} alt="Logo" style={{ height: 60, marginBottom: 24 }} />
+          <h2 style={{ color: "#fff", margin: "0 0 8px", fontSize: 22, fontWeight: 700 }}>Business Dashboard</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", margin: "0 0 32px", fontSize: 14 }}>Enter password to continue</p>
+          <input type="password" value={dashPw} onChange={(ev) => { setDashPw(ev.target.value); setDashPwErr(false); }} placeholder="Password" autoFocus style={{ width: "100%", padding: "14px 16px", fontSize: 15, borderRadius: 10, border: dashPwErr ? "2px solid #ef4444" : "2px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none", boxSizing: "border-box" }} />
+          {dashPwErr && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0" }}>Incorrect password</p>}
+          <button type="submit" style={{ width: "100%", padding: 14, marginTop: 20, fontSize: 15, fontWeight: 600, borderRadius: 10, border: "none", cursor: "pointer", color: "#fff", background: "linear-gradient(135deg, #7674B6, #5C5A9E)", boxShadow: "0 4px 15px rgba(118,116,182,0.4)" }}>Sign In</button>
+        </form>
+      </div>
+    );
+  }
+
+return (
     <div style={{
       background: COLORS.bg, minHeight: "100vh", color: COLORS.text,
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
-      {/* ── Header ── */}
+      {/* ââ Header ââ */}
       <div style={{ background: COLORS.headerBg, padding: "18px 32px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
@@ -936,12 +960,12 @@ export default function Dashboard() {
 
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 32px 48px" }}>
 
-        {/* ══════════════════ TABBED SECTIONS ══════════════════ */}
+        {/* ââââââââââââââââââ TABBED SECTIONS ââââââââââââââââââ */}
 
         {/* OVERVIEW TAB */}
         {activeTab === "Overview" && (
           <>
-            {/* ══════════════════ TODAY ══════════════════ */}
+            {/* ââââââââââââââââââ TODAY ââââââââââââââââââ */}
             <div style={{ marginBottom: 8 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Today</h2>
               <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>
@@ -957,7 +981,7 @@ export default function Dashboard() {
               <TodayCard icon={DollarSign} label="Total Sales" value={todayData.totalSales} compareValue={yesterdayData.totalSales} compareLabel="Yesterday" color={COLORS.blue} colorLight={COLORS.blueLight} isCurrency />
             </div>
 
-            {/* ══════════════════ THIS WEEK ══════════════════ */}
+            {/* ââââââââââââââââââ THIS WEEK ââââââââââââââââââ */}
             <div style={{ marginBottom: 8 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>This Week</h2>
               <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>{getWeekRange()}</p>
@@ -971,11 +995,11 @@ export default function Dashboard() {
               <WeekCard icon={DollarSign} label="Total Sales" total={fmtFull(weekTotals.sales)} compareTotal={lastWeekTotals.sales} data={weekData} dataKey="sales" color={COLORS.blue} colorLight={COLORS.blueLight} isCurrency />
             </div>
 
-            {/* ══════════════════ DIVIDER ══════════════════ */}
+            {/* ââââââââââââââââââ DIVIDER ââââââââââââââââââ */}
             <div style={{ borderTop: `1px solid ${COLORS.cardBorder}`, marginBottom: 32 }} />
             {/* Daily Breakdown Chart */}
             <ChartCard style={{ marginBottom: 24 }}>
-              <SectionTitle>Daily Breakdown — This Week</SectionTitle>
+              <SectionTitle>Daily Breakdown â This Week</SectionTitle>
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={weekData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} />
@@ -1002,7 +1026,7 @@ export default function Dashboard() {
                     <div>
                       <div style={{ color: COLORS.textMuted, fontSize: 13, fontWeight: 600 }}>{y.year}</div>
                       <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{fmtFull(y.revenue)}</div>
-                      <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>{y.count} projects · ${y.aov} AOV</div>
+                      <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>{y.count} projects Â· ${y.aov} AOV</div>
                     </div>
                     {i > 0 && (
                       <div style={{
@@ -1069,7 +1093,7 @@ export default function Dashboard() {
 
             {/* Seasonality */}
             <ChartCard style={{ marginBottom: 32 }}>
-              <SectionTitle>Seasonality — Average Order Value by Month</SectionTitle>
+              <SectionTitle>Seasonality â Average Order Value by Month</SectionTitle>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={seasonalityData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} />
@@ -1092,7 +1116,7 @@ export default function Dashboard() {
                   return (
                     <div key={b.status} style={{ flex: 1, minWidth: 180, textAlign: "center", padding: 16 }}>
                       <div style={{ fontSize: 28, fontWeight: 700, color: colors[i] }}>{fmtFull(b.revenue)}</div>
-                      <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>{b.status} · {b.count} projects · {pct}%</div>
+                      <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>{b.status} Â· {b.count} projects Â· {pct}%</div>
                     </div>
                   );
                 })}
@@ -1114,27 +1138,27 @@ export default function Dashboard() {
               <ChartCard>
                 <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Sales (Booked)</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent, marginTop: 6 }}>{fmtFull(totalSales2026)}</div>
-                <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4 }}>{gspStatusCounts.contractSigned} contracts · 2026 YTD</div>
+                <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4 }}>{gspStatusCounts.contractSigned} contracts Â· 2026 YTD</div>
               </ChartCard>
               <ChartCard>
                 <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Earned Revenue</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.green, marginTop: 6 }}>{fmtFull(earnedRevenue2026.earned)}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{earnedRevenue2026.earnedCount} completed jobs · 2026 YTD</span>
+                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{earnedRevenue2026.earnedCount} completed jobs Â· 2026 YTD</span>
                 </div>
               </ChartCard>
               <ChartCard>
                 <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Unearned (Upcoming)</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.orange, marginTop: 6 }}>{fmtFull(earnedRevenue2026.unearned)}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{earnedRevenue2026.unearnedCount} upcoming jobs · Logistics pending</span>
+                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{earnedRevenue2026.unearnedCount} upcoming jobs Â· Logistics pending</span>
                 </div>
               </ChartCard>
               <ChartCard>
                 <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Avg Order Value</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.blue, marginTop: 6 }}>{fmtFull(Math.round(totalSales2026 / gspStatusCounts.contractSigned))}</div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{gspStatusCounts.contractSigned} contracts · 2026 YTD</span>
+                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{gspStatusCounts.contractSigned} contracts Â· 2026 YTD</span>
                 </div>
               </ChartCard>
             </div>
@@ -1180,7 +1204,7 @@ export default function Dashboard() {
             {/* Top Clients + Yearly Comparison */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
               <ChartCard>
-                <SectionTitle>Top 5 Clients — 2026</SectionTitle>
+                <SectionTitle>Top 5 Clients â 2026</SectionTitle>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
@@ -1207,7 +1231,7 @@ export default function Dashboard() {
                       ))}
                     </tbody>
                   </table>
-                  <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 8, fontWeight: 500 }}>Source: GSP Master Sheet · 2026 YTD</div>
+                  <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 8, fontWeight: 500 }}>Source: GSP Master Sheet Â· 2026 YTD</div>
                 </div>
               </ChartCard>
 
@@ -1246,11 +1270,11 @@ export default function Dashboard() {
                 <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 4 }}>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.green }}>{fmtFull(earnedRevenue2026.earned)}</div>
-                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Earned ({(earnedRevenue2026.earned / totalSales2026 * 100).toFixed(1)}%) · {earnedRevenue2026.earnedCount} jobs</div>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Earned ({(earnedRevenue2026.earned / totalSales2026 * 100).toFixed(1)}%) Â· {earnedRevenue2026.earnedCount} jobs</div>
                   </div>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.orange }}>{fmtFull(earnedRevenue2026.unearned)}</div>
-                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Unearned ({(earnedRevenue2026.unearned / totalSales2026 * 100).toFixed(1)}%) · {earnedRevenue2026.unearnedCount} jobs</div>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Unearned ({(earnedRevenue2026.unearned / totalSales2026 * 100).toFixed(1)}%) Â· {earnedRevenue2026.unearnedCount} jobs</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 12, textAlign: "center", fontWeight: 500 }}>Based on logistics start date from GSP</div>
@@ -1306,7 +1330,7 @@ export default function Dashboard() {
         {/* MARKETING TAB */}
         {activeTab === "Marketing" && (
           <>
-            {/* ── Date Picker ── */}
+            {/* ââ Date Picker ââ */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
               {[["7d", "Last 7 Days"], ["14d", "Last 14 Days"], ["30d", "Last 30 Days"], ["custom", "Custom"]].map(([val, label]) => (
                 <button key={val} onClick={() => setMktPreset(val)} style={{
@@ -1320,18 +1344,18 @@ export default function Dashboard() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4 }}>
                   <input type="date" value={mktFrom} onChange={e => setMktFrom(e.target.value)} min="2026-04-09" max="2026-05-09"
                     style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${COLORS.cardBorder}`, fontSize: 13, color: COLORS.text, background: COLORS.cardBg }} />
-                  <span style={{ color: COLORS.textMuted }}>–</span>
+                  <span style={{ color: COLORS.textMuted }}>â</span>
                   <input type="date" value={mktTo} onChange={e => setMktTo(e.target.value)} min="2026-04-09" max="2026-05-09"
                     style={{ padding: "6px 10px", borderRadius: 6, border: `1px solid ${COLORS.cardBorder}`, fontSize: 13, color: COLORS.text, background: COLORS.cardBg }} />
                 </div>
               )}
               <span style={{ fontSize: 12, color: COLORS.textMuted, marginLeft: 8, fontWeight: 500 }}>
-                {mkt.dateLabel} · {mkt.rangeDays} day{mkt.rangeDays !== 1 ? "s" : ""} (vs prior period)
+                {mkt.dateLabel} Â· {mkt.rangeDays} day{mkt.rangeDays !== 1 ? "s" : ""} (vs prior period)
               </span>
             </div>
 
-            {/* ── Website Traffic KPIs ── */}
-            <BrandedSection logo={<GA4Logo />} title="Website Traffic" subtitle="Google Analytics 4 · theeventrentalguys.com" borderColor="#F9AB00" />
+            {/* ââ Website Traffic KPIs ââ */}
+            <BrandedSection logo={<GA4Logo />} title="Website Traffic" subtitle="Google Analytics 4 Â· theeventrentalguys.com" borderColor="#F9AB00" />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
                 { label: "Sessions", val: mkt.ga4.sessions, comp: mkt.ga4Prev.sessions, icon: Users, color: COLORS.purple, colorLight: COLORS.purpleLight },
@@ -1354,7 +1378,7 @@ export default function Dashboard() {
                       <span style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{val.toLocaleString()}</span>
                       {diff !== 0 && (
                         <span style={{ fontSize: 13, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
-                          {isUp ? "▲" : "▼"}{pct}%
+                          {isUp ? "â²" : "â¼"}{pct}%
                         </span>
                       )}
                     </div>
@@ -1417,9 +1441,9 @@ export default function Dashboard() {
               </div>
             </ChartCard>
 
-            {/* ── Google Ads ── */}
+            {/* ââ Google Ads ââ */}
             <div style={{ paddingTop: 24 }}>
-              <BrandedSection logo={<GoogleAdsLogo />} title="Google Ads" subtitle="Account 956-015-9568 · Event Rental Guys" borderColor="#4285F4" />
+              <BrandedSection logo={<GoogleAdsLogo />} title="Google Ads" subtitle="Account 956-015-9568 Â· Event Rental Guys" borderColor="#4285F4" />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
@@ -1444,7 +1468,7 @@ export default function Dashboard() {
                       <span style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{isCurr ? `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : val.toLocaleString()}</span>
                       {diff !== 0 && (
                         <span style={{ fontSize: 13, fontWeight: 600, color: arrowColor }}>
-                          {isUp ? "▲" : "▼"}{pct}%
+                          {isUp ? "â²" : "â¼"}{pct}%
                         </span>
                       )}
                     </div>
@@ -1492,9 +1516,9 @@ export default function Dashboard() {
               </div>
             </ChartCard>
 
-            {/* ── Search Console ── */}
+            {/* ââ Search Console ââ */}
             <div style={{ paddingTop: 24 }}>
-              <BrandedSection logo={<SearchConsoleLogo />} title="Google Search Console" subtitle="theeventrentalguys.com · Data has a 2-day delay" borderColor="#4285F4" />
+              <BrandedSection logo={<SearchConsoleLogo />} title="Google Search Console" subtitle="theeventrentalguys.com Â· Data has a 2-day delay" borderColor="#4285F4" />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
@@ -1508,30 +1532,7 @@ export default function Dashboard() {
                 const isUp = diff > 0;
                 const arrowColor = invertColor ? (isUp ? COLORS.red : COLORS.green) : (isUp ? COLORS.green : COLORS.red);
               
-  // Password gate - all hooks called above, safe to return early here
-  if (!dashAuth) {
-    const checkPw = (e) => {
-      e.preventDefault();
-      if (btoa(dashPw) === "R1JPVkVSVExPVkVTQ0xBVURF") {
-        setDashAuth(true);
-        try { sessionStorage.setItem("dash_auth", "1"); } catch(e) {}
-      } else { setDashPwErr(true); }
-    };
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #1B1A32 0%, #2D2B55 50%, #1B1A32 100%)", fontFamily: "Inter, -apple-system, sans-serif" }}>
-        <form onSubmit={checkPw} style={{ background: "rgba(255,255,255,0.07)", borderRadius: 20, padding: "48px 40px", width: 380, textAlign: "center", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 25px 60px rgba(0,0,0,0.4)" }}>
-          <img src={LOGO_URL} alt="Logo" style={{ height: 60, marginBottom: 24 }} />
-          <h2 style={{ color: "#fff", margin: "0 0 8px", fontSize: 22, fontWeight: 700 }}>Business Dashboard</h2>
-          <p style={{ color: "rgba(255,255,255,0.5)", margin: "0 0 32px", fontSize: 14 }}>Enter password to continue</p>
-          <input type="password" value={dashPw} onChange={(e) => { setDashPw(e.target.value); setDashPwErr(false); }} placeholder="Password" autoFocus style={{ width: "100%", padding: "14px 16px", fontSize: 15, borderRadius: 10, border: dashPwErr ? "2px solid #ef4444" : "2px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none", boxSizing: "border-box" }} />
-          {dashPwErr && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0" }}>Incorrect password</p>}
-          <button type="submit" style={{ width: "100%", padding: 14, marginTop: 20, fontSize: 15, fontWeight: 600, borderRadius: 10, border: "none", cursor: "pointer", color: "#fff", background: "linear-gradient(135deg, #7674B6, #5C5A9E)", boxShadow: "0 4px 15px rgba(118,116,182,0.4)" }}>Sign In</button>
-        </form>
-      </div>
-    );
-  }
-
-  return (
+  // Password gate - all hooks called above, safe to return early here  return (
                   <ChartCard key={label}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <div style={{ background: colorLight, borderRadius: 8, padding: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1543,7 +1544,7 @@ export default function Dashboard() {
                       <span style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{isPct ? `${val}%` : isDecimal ? val.toFixed(1) : val.toLocaleString()}</span>
                       {diff !== 0 && (
                         <span style={{ fontSize: 13, fontWeight: 600, color: arrowColor }}>
-                          {isUp ? "▲" : "▼"}{pct}%
+                          {isUp ? "â²" : "â¼"}{pct}%
                         </span>
                       )}
                     </div>
@@ -1719,7 +1720,7 @@ export default function Dashboard() {
           textAlign: "center", color: COLORS.textMuted, fontSize: 11, marginTop: 40, paddingTop: 20,
           borderTop: `1px solid ${COLORS.cardBorder}`,
         }}>
-          The Event Rental Guys · Business Dashboard · Data: Windsor.ai (GA4 · Google Ads · Search Console) + Goodshuffle Pro · Feb 2023 – May 2026
+          The Event Rental Guys Â· Business Dashboard Â· Data: Windsor.ai (GA4 Â· Google Ads Â· Search Console) + Goodshuffle Pro Â· Feb 2023 â May 2026
         </div>
       </div>
     </div>
