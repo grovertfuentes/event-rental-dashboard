@@ -101,86 +101,97 @@ function getMonday(date) {
 
 async function fetchLiveGSPData() {
   try {
-    const url = "https://docs.google.com/spreadsheets/d/" + GSP_SHEET_ID + "/gviz/tq?tqx=out:csv";
+    const url = `https://docs.google.com/spreadsheets/d/${GSP_SHEET_ID}/gviz/tq?tqx=out:csv`;
     const resp = await fetch(url);
-    const text = await resp.text();
-    const rows = parseCSV(text);
-    if (!rows.length) return null;
+    if (!resp.ok) throw new Error("GSP fetch failed");
+    const rows = parseCSV(await resp.text());
 
     const now = new Date();
-    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayDate = new Date(todayDate); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const thisMonday = getMonday(todayDate);
-    const lastMonday = new Date(thisMonday); lastMonday.setDate(lastMonday.getDate() - 7);
-    const currentYear = now.getFullYear();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const monday = getMonday(today);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const lastMonday = new Date(monday); lastMonday.setDate(monday.getDate() - 7);
+    const lastSunday = new Date(monday.getTime() - 1);
+    const currentYear = today.getFullYear();
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-    function dayMetrics(rows, targetDate) {
-      let quotes = 0, contracts = 0, revenue = 0;
-      rows.forEach(r => {
-        const created = parseGSPDate(r["Date Created"]);
-        if (!created || !sameDay(created, targetDate)) return;
-        if (r["Status"] === "Quote Sent") { quotes++; revenue += parseMoney(r["Quote Total"]); }
-        if (r["Status"] === "Contract Signed") { contracts++; revenue += parseMoney(r["Contract Total"] || r["Quote Total"]); }
-      });
-      return { quotes, contracts, revenue };
-    }
-
-    const todayM = dayMetrics(rows, todayDate);
-    const yesterdayM = dayMetrics(rows, yesterdayDate);
-    const liveTodayData = { quotes: todayM.quotes, contracts: todayM.contracts, revenue: "$" + todayM.revenue.toLocaleString() };
-    const liveYesterdayData = { quotes: yesterdayM.quotes, contracts: yesterdayM.contracts, revenue: "$" + yesterdayM.revenue.toLocaleString() };
-
-    function buildWeek(monday) {
-      const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-      return days.map((name, i) => {
-        const d = new Date(monday); d.setDate(d.getDate() + i);
-        const m = dayMetrics(rows, d);
-        return { day: name, quotes: m.quotes, contracts: m.contracts };
-      });
-    }
-    const liveWeekData = buildWeek(thisMonday);
-
-    function weekTotalsFor(monday) {
-      const end = new Date(monday); end.setDate(end.getDate() + 6);
-      let quotes = 0, contracts = 0, revenue = 0;
-      rows.forEach(r => {
-        const created = parseGSPDate(r["Date Created"]);
-        if (!created || created < monday || created > end) return;
-        if (r["Status"] === "Quote Sent") { quotes++; revenue += parseMoney(r["Quote Total"]); }
-        if (r["Status"] === "Contract Signed") { contracts++; revenue += parseMoney(r["Contract Total"] || r["Quote Total"]); }
-      });
-      return { quotes, contracts, revenue: "$" + revenue.toLocaleString() };
-    }
-    const liveWeekTotals = weekTotalsFor(thisMonday);
-    const liveLastWeekTotals = weekTotalsFor(lastMonday);
-
-    const ytdRows = rows.filter(r => { const d = parseGSPDate(r["Date Created"]); return d && d.getFullYear() === currentYear; });
-    let totalSales = 0, totalPipeline = 0, earned = 0;
-    const clientSpend = {};
-    ytdRows.forEach(r => {
-      const amt = parseMoney(r["Contract Total"] || r["Quote Total"]);
-      if (r["Status"] === "Contract Signed") {
-        totalSales += amt;
-        const client = r["Client Name"] || "Unknown";
-        clientSpend[client] = (clientSpend[client] || 0) + amt;
-        const logDate = parseGSPDate(r["Logistics Start Date"]);
-        if (logDate && logDate <= todayDate) { earned += amt; }
-      }
-      totalPipeline += amt;
+    // Helper: count metrics for a single day
+    const dayMetrics = (targetDate) => ({
+      wishlists: 0,
+      forms: 0,
+      quotesCreated: rows.filter(r => sameDay(parseGSPDate(r["Date Created"]), targetDate)).length,
+      quotesSent: rows.filter(r => sameDay(parseGSPDate(r["Last Quote Sent"]), targetDate)).length,
+      contracts: rows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["Last Signed Date"]), targetDate)).length,
+      totalSales: rows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["Last Signed Date"]), targetDate))
+        .reduce((s, r) => s + parseMoney(r["Contract Total"] || r["Quote Total"]), 0),
     });
 
-    const liveTopClients = Object.entries(clientSpend).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, spend]) => ({ name, spend: "$" + spend.toLocaleString() }));
-    const statusCounts = { "Quote Sent": 0, "Contract Signed": 0, "Lost": 0, "New Project": 0 };
-    rows.forEach(r => { const s = r["Status"]; if (s in statusCounts) statusCounts[s]++; });
+    // Week breakdown by day
+    const buildWeek = (weekStart) => {
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+        const m = dayMetrics(d);
+        days.push({ day: dayNames[i], ...m, sales: m.totalSales });
+      }
+      return days;
+    };
+
+    const weekDays = buildWeek(monday);
+    const lastWeekDays = buildWeek(lastMonday);
+    const sumWeek = (arr) => arr.reduce((a, d) => ({
+      wishlists: a.wishlists + d.wishlists, forms: a.forms + d.forms,
+      quotesCreated: a.quotesCreated + d.quotesCreated, quotesSent: a.quotesSent + d.quotesSent,
+      contracts: a.contracts + d.contracts, sales: a.sales + d.sales,
+    }), { wishlists: 0, forms: 0, quotesCreated: 0, quotesSent: 0, contracts: 0, sales: 0 });
+
+    // Year-to-date (current year, contract signed only for revenue)
+    const yearRows = rows.filter(r => { const d = parseGSPDate(r["Date Created"]); return d && d.getFullYear() === currentYear; });
+    const signedYear = yearRows.filter(r => r["Status"] === "Contract Signed");
+
+    // Top 5 clients by spend
+    const clientMap = {};
+    signedYear.forEach(r => {
+      const n = r["Client Name"];
+      const amt = parseMoney(r["Contract Total"] || r["Quote Total"]);
+      if (!clientMap[n]) clientMap[n] = { name: n, spend: 0, orders: 0 };
+      clientMap[n].spend += amt; clientMap[n].orders += 1;
+    });
+    const top5 = Object.values(clientMap)
+      .map(c => ({ ...c, spend: Math.round(c.spend), aov: c.orders ? Math.round(c.spend / c.orders) : 0 }))
+      .sort((a, b) => b.spend - a.spend).slice(0, 5);
+
+    // Earned vs Unearned
+    const earnedRows = signedYear.filter(r => { const d = parseGSPDate(r["Logistics Start Date"]); return d && d <= today; });
+    const unearnedRows = signedYear.filter(r => { const d = parseGSPDate(r["Logistics Start Date"]); return !d || d > today; });
+    const sumTotal = (arr) => arr.reduce((s, r) => s + parseMoney(r["Contract Total"] || r["Quote Total"]), 0);
+
+    const totalSigned = sumTotal(signedYear);
 
     return {
-      todayData: liveTodayData, yesterdayData: liveYesterdayData,
-      weekData: liveWeekData, weekTotals: liveWeekTotals, lastWeekTotals: liveLastWeekTotals,
-      topClients2026: liveTopClients, earnedRevenue2026: "$" + earned.toLocaleString(),
-      totalSales2026: "$" + totalSales.toLocaleString(), totalPipeline2026: "$" + totalPipeline.toLocaleString(),
-      gspStatusCounts: statusCounts,
+      todayData: dayMetrics(today),
+      yesterdayData: dayMetrics(yesterday),
+      weekData: weekDays,
+      weekTotals: sumWeek(weekDays),
+      lastWeekTotals: sumWeek(lastWeekDays),
+      topClients2026: top5,
+      earnedRevenue2026: {
+        earned: Math.round(sumTotal(earnedRows)), earnedCount: earnedRows.length,
+        unearned: Math.round(sumTotal(unearnedRows)), unearnedCount: unearnedRows.length,
+      },
+      totalSales2026: Math.round(totalSigned),
+      totalPipeline2026: Math.round(yearRows.reduce((s, r) => s + parseMoney(r["Quote Total"]), 0)),
+      gspStatusCounts: {
+        contractSigned: yearRows.filter(r => r["Status"] === "Contract Signed").length,
+        quoteSent: yearRows.filter(r => r["Status"] === "Quote Sent").length,
+        newProject: yearRows.filter(r => r["Status"] === "New Project").length,
+      },
     };
-  } catch (e) { console.error("fetchLiveGSPData error:", e); return null; }
+  } catch (err) {
+    console.error("Live data fetch failed, using defaults:", err);
+    return null;
+  }
 }
 
 async function fetchWPFormsCount() {
