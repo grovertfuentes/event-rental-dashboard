@@ -855,66 +855,14 @@ const GSP_DEFAULTS = {
 
 
 
-// ── Password Protection ──
-const PW_CHECK = "R1JPVkVSVExPVkVTQ0xBVURF";
-
-function PasswordGate({ children }) {
-  const [ok, setOk] = useState(false);
-  const [pw, setPw] = useState("");
-  const [err, setErr] = useState(false);
-
-  useEffect(() => {
-    try { if (sessionStorage.getItem("dash_auth") === "1") setOk(true); } catch(e) {}
-  }, []);
-
-  if (ok) return children;
-
-  const submit = (e) => {
-    e.preventDefault();
-    if (btoa(pw) === PW_CHECK) {
-      setOk(true);
-      try { sessionStorage.setItem("dash_auth", "1"); } catch(e) {}
-    } else {
-      setErr(true);
-    }
-  };
-
-  const bg = "linear-gradient(135deg, #1B1A32 0%, #2D2B55 50%, #1B1A32 100%)";
-  const boxStyle = {
-    background: "rgba(255,255,255,0.07)",
-    borderRadius: 20, padding: "48px 40px", width: 380, textAlign: "center",
-    border: "1px solid rgba(255,255,255,0.12)",
-    boxShadow: "0 25px 60px rgba(0,0,0,0.4)",
-  };
-  const inputStyle = {
-    width: "100%", padding: "14px 16px", fontSize: 15, borderRadius: 10,
-    border: err ? "2px solid #ef4444" : "2px solid rgba(255,255,255,0.15)",
-    background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none",
-    boxSizing: "border-box",
-  };
-  const btnStyle = {
-    width: "100%", padding: 14, marginTop: 20, fontSize: 15, fontWeight: 600,
-    borderRadius: 10, border: "none", cursor: "pointer", color: "#fff",
-    background: "linear-gradient(135deg, #7674B6, #5C5A9E)",
-    boxShadow: "0 4px 15px rgba(118,116,182,0.4)",
-  };
-
-  return (
-    <PasswordGate>
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: bg, fontFamily: "Inter, -apple-system, sans-serif" }}>
-      <form onSubmit={submit} style={boxStyle}>
-        <img src={LOGO_URL} alt="Logo" style={{ height: 60, marginBottom: 24 }} />
-        <h2 style={{ color: "#fff", margin: "0 0 8px", fontSize: 22, fontWeight: 700 }}>Business Dashboard</h2>
-        <p style={{ color: "rgba(255,255,255,0.5)", margin: "0 0 32px", fontSize: 14 }}>Enter password to continue</p>
-        <input type="password" value={pw} onChange={(e) => { setPw(e.target.value); setErr(false); }} placeholder="Password" autoFocus style={inputStyle} />
-        {err && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0" }}>Incorrect password</p>}
-        <button type="submit" style={btnStyle}>Sign In</button>
-      </form>
-    </div>
-  );
-}
-
 export default function Dashboard() {
+  // ── Password Protection ──
+  const [dashAuth, setDashAuth] = useState(() => {
+    try { return sessionStorage.getItem("dash_auth") === "1"; } catch(e) { return false; }
+  });
+  const [dashPw, setDashPw] = useState("");
+  const [dashPwErr, setDashPwErr] = useState(false);
+
   const [liveData, setLiveData] = useState(null);
   useEffect(() => {
     fetchLiveGSPData().then(data => { if (data) setLiveData(data); });
@@ -1559,7 +1507,31 @@ export default function Dashboard() {
                 const pct = comp === 0 ? (val > 0 ? 100 : 0) : Math.round(Math.abs(diff) / comp * 100);
                 const isUp = diff > 0;
                 const arrowColor = invertColor ? (isUp ? COLORS.red : COLORS.green) : (isUp ? COLORS.green : COLORS.red);
-                return (
+              
+  // Password gate - all hooks called above, safe to return early here
+  if (!dashAuth) {
+    const checkPw = (e) => {
+      e.preventDefault();
+      if (btoa(dashPw) === "R1JPVkVSVExPVkVTQ0xBVURF") {
+        setDashAuth(true);
+        try { sessionStorage.setItem("dash_auth", "1"); } catch(e) {}
+      } else { setDashPwErr(true); }
+    };
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #1B1A32 0%, #2D2B55 50%, #1B1A32 100%)", fontFamily: "Inter, -apple-system, sans-serif" }}>
+        <form onSubmit={checkPw} style={{ background: "rgba(255,255,255,0.07)", borderRadius: 20, padding: "48px 40px", width: 380, textAlign: "center", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 25px 60px rgba(0,0,0,0.4)" }}>
+          <img src={LOGO_URL} alt="Logo" style={{ height: 60, marginBottom: 24 }} />
+          <h2 style={{ color: "#fff", margin: "0 0 8px", fontSize: 22, fontWeight: 700 }}>Business Dashboard</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", margin: "0 0 32px", fontSize: 14 }}>Enter password to continue</p>
+          <input type="password" value={dashPw} onChange={(e) => { setDashPw(e.target.value); setDashPwErr(false); }} placeholder="Password" autoFocus style={{ width: "100%", padding: "14px 16px", fontSize: 15, borderRadius: 10, border: dashPwErr ? "2px solid #ef4444" : "2px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none", boxSizing: "border-box" }} />
+          {dashPwErr && <p style={{ color: "#ef4444", fontSize: 13, margin: "8px 0 0" }}>Incorrect password</p>}
+          <button type="submit" style={{ width: "100%", padding: 14, marginTop: 20, fontSize: 15, fontWeight: 600, borderRadius: 10, border: "none", cursor: "pointer", color: "#fff", background: "linear-gradient(135deg, #7674B6, #5C5A9E)", boxShadow: "0 4px 15px rgba(118,116,182,0.4)" }}>Sign In</button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
                   <ChartCard key={label}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <div style={{ background: colorLight, borderRadius: 8, padding: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1751,6 +1723,5 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
-    </PasswordGate>
   );
 }
