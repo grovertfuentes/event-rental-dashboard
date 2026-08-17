@@ -165,6 +165,22 @@ async function fetchLiveGSPData() {
 
     const totalSigned = sumTotal(signedYear);
 
+    // ── Monthly revenue aggregation from signed contracts ──
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const monthlyMap = {};
+    rows.forEach(r => {
+      if (r["Status"] !== "Contract Signed") return;
+      const d = parseGSPDate(r["Last Signed Date"]) || parseGSPDate(r["Date Created"]);
+      if (!d) return;
+      const key = monthNames[d.getMonth()] + " " + String(d.getFullYear()).slice(-2);
+      if (!monthlyMap[key]) monthlyMap[key] = { m: key, revenue: 0, count: 0, _mi: d.getFullYear() * 12 + d.getMonth() };
+      monthlyMap[key].revenue += parseMoney(r["Contract Total"] || r["Quote Total"]);
+      monthlyMap[key].count += 1;
+    });
+    const liveMonthly = Object.values(monthlyMap)
+      .sort((a, b) => a._mi - b._mi)
+      .map(({ _mi, ...rest }) => ({ ...rest, revenue: Math.round(rest.revenue), aov: rest.count > 0 ? Math.round(rest.revenue / rest.count) : 0 }));
+
     return {
       todayData: dayMetrics(today),
       yesterdayData: dayMetrics(yesterday),
@@ -183,6 +199,7 @@ async function fetchLiveGSPData() {
         quoteSent: yearRows.filter(r => r["Status"] === "Quote Sent").length,
         newProject: yearRows.filter(r => r["Status"] === "New Project").length,
       },
+      liveMonthly,
     };
   } catch (err) {
     console.error("Live data fetch failed, using defaults:", err);
@@ -855,9 +872,10 @@ export default function Dashboard() {
   });
   const [dashPw, setDashPw] = useState("");
   const [dashPwErr, setDashPwErr] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [activeTab, setActiveTab] = useState("Overview");
-  const [monthRange, setMonthRange] = useState("all");
+  const [monthRange, setMonthRange] = useState("12");
   const [mktPreset, setMktPreset] = useState("7d");
   const [mktFrom, setMktFrom] = useState("2026-05-03");
   const [mktTo, setMktTo] = useState("2026-05-09");
@@ -874,20 +892,41 @@ export default function Dashboard() {
     topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
   } = liveData ?? GSP_DEFAULTS;
 
-  const filteredMonthly = useMemo(() => {
-    if (monthRange === "12") return monthlyData.slice(-12);
-    if (monthRange === "6") return monthlyData.slice(-6);
-    return monthlyData;
-  }, [monthRange]);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const data = await fetchLiveGSPData();
+      if (data) setLiveData(data);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
+  const effectiveMonthlyData = useMemo(() => {
+    if (!liveData?.liveMonthly?.length) return monthlyData;
+    const liveMap = {};
+    liveData.liveMonthly.forEach(m => { liveMap[m.m] = m; });
+    const result = monthlyData.map(m => liveMap[m.m] || m);
+    liveData.liveMonthly.forEach(m => {
+      if (!monthlyData.find(h => h.m === m.m)) result.push(m);
+    });
+    return result;
+  }, [liveData]);
+
+  const filteredMonthly = useMemo(() => {
+    if (monthRange === "12") return effectiveMonthlyData.slice(-12);
+    if (monthRange === "6") return effectiveMonthlyData.slice(-6);
+    return effectiveMonthlyData;
+  }, [monthRange, effectiveMonthlyData]);
+
+  const mktLatest = GA4_DAILY.length > 0 ? GA4_DAILY[GA4_DAILY.length - 1].d : new Date().toISOString().slice(0, 10);
   const mktDates = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
     const sub = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
-    if (mktPreset === "7d") return { from: sub(today, 6), to: today };
-    if (mktPreset === "14d") return { from: sub(today, 13), to: today };
-    if (mktPreset === "30d") return { from: sub(today, 29), to: today };
+    if (mktPreset === "7d") return { from: sub(mktLatest, 6), to: mktLatest };
+    if (mktPreset === "14d") return { from: sub(mktLatest, 13), to: mktLatest };
+    if (mktPreset === "30d") return { from: sub(mktLatest, 29), to: mktLatest };
     return { from: mktFrom, to: mktTo };
-  }, [mktPreset, mktFrom, mktTo]);
+  }, [mktPreset, mktFrom, mktTo, mktLatest]);
 
   const mkt = useMemo(() => computeMktMetrics(mktDates.from, mktDates.to), [mktDates]);
 
@@ -919,6 +958,7 @@ export default function Dashboard() {
       background: COLORS.bg, minHeight: "100vh", color: COLORS.text,
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {/* ── Header ── */}
       <div style={{ background: COLORS.headerBg, padding: "18px 32px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -939,6 +979,10 @@ export default function Dashboard() {
                 {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
               </p>
             </div>
+          <button onClick={handleRefresh} disabled={refreshing} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "8px 16px", color: "#fff", cursor: refreshing ? "wait" : "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, opacity: refreshing ? 0.6 : 1, transition: "all 0.2s", marginLeft: 8 }}>
+            <Activity size={14} style={refreshing ? { animation: "spin 1s linear infinite" } : {}} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: 4 }}>
             {tabs.map((t) => (
@@ -1347,6 +1391,7 @@ export default function Dashboard() {
                 {mkt.dateLabel} · {mkt.rangeDays} day{mkt.rangeDays !== 1 ? "s" : ""} (vs prior period)
               </span>
             </div>
+            <p style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 8 }}>Windsor.ai data covers {GA4_DAILY[0]?.d} to {GA4_DAILY[GA4_DAILY.length - 1]?.d}</p>
 
             {/* ── Website Traffic KPIs ── */}
             <BrandedSection logo={<GA4Logo />} title="Website Traffic" subtitle="Google Analytics 4 · theeventrentalguys.com" borderColor="#F9AB00" />
