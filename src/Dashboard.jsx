@@ -95,12 +95,57 @@ function getMonday(date) {
   return d;
 }
 
+// Accepts "MM/DD/YYYY ...", "YYYY-MM-DD ..." or anything Date can parse
+function parseLooseDate(str) {
+  if (!str) return null;
+  let m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return new Date(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]));
+  m = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  const t = Date.parse(str);
+  if (isNaN(t)) return null;
+  const d = new Date(t);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Goodshuffle puts the export timestamp in the first header cell:
+// "Goodshuffle Pro Project List Export 08/14/2026 @ 3:27 PM EDT Project ID"
+function parseExportDate(rows) {
+  const firstHeader = rows.length ? Object.keys(rows[0])[0] : "";
+  const m = firstHeader.match(/Export (\d{1,2}\/\d{1,2}\/\d{4})(?: @ (\d{1,2}:\d{2} [AP]M))?/);
+  if (!m) return null;
+  return { date: parseGSPDate(m[1]), time: m[2] || null };
+}
+
+// WPForms entries — returns the date of each submission
+async function fetchWPFormsDates() {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${WPFORMS_SHEET_ID}/gviz/tq?tqx=out:csv`;
+    const resp = await fetch(url);
+    if (!resp.ok) return [];
+    const rows = parseCSV(await resp.text());
+    return rows.map(r => parseLooseDate(r["Date / Time"])).filter(Boolean);
+  } catch { return []; }
+}
+
+// Month label "Mar 26" → sortable month index
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const monthIndex = (label) => {
+  const [mon, yy] = label.split(" ");
+  return (2000 + parseInt(yy)) * 12 + MONTH_NAMES.indexOf(mon);
+};
+
+// The Goodshuffle export only holds recent projects, so older months in it are
+// incomplete. Hard-coded history is used through Mar 2026; the live sheet from Apr 2026 on.
+const LIVE_MONTHS_FROM = monthIndex("Apr 26");
+
 async function fetchLiveGSPData() {
   try {
     const url = `https://docs.google.com/spreadsheets/d/${GSP_SHEET_ID}/gviz/tq?tqx=out:csv`;
-    const resp = await fetch(url);
+    const [resp, formDates] = await Promise.all([fetch(url), fetchWPFormsDates()]);
     if (!resp.ok) throw new Error("GSP fetch failed");
     const rows = parseCSV(await resp.text());
+    const exportInfo = parseExportDate(rows);
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -115,7 +160,7 @@ async function fetchLiveGSPData() {
     // ── Helper: count metrics for a single day ──
     const dayMetrics = (targetDate) => ({
       wishlists: 0,
-      forms: 0,
+      forms: formDates.filter(d => sameDay(d, targetDate)).length,
       quotesCreated: rows.filter(r => sameDay(parseGSPDate(r["Date Created"]), targetDate)).length,
       quotesSent: rows.filter(r => sameDay(parseGSPDate(r["Last Quote Sent"]), targetDate)).length,
       contracts: rows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["Last Signed Date"]), targetDate)).length,
@@ -166,20 +211,19 @@ async function fetchLiveGSPData() {
     const totalSigned = sumTotal(signedYear);
 
     // ── Monthly revenue aggregation from signed contracts ──
-    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthlyMap = {};
     rows.forEach(r => {
       if (r["Status"] !== "Contract Signed") return;
       const d = parseGSPDate(r["Last Signed Date"]) || parseGSPDate(r["Date Created"]);
       if (!d) return;
-      const key = monthNames[d.getMonth()] + " " + String(d.getFullYear()).slice(-2);
-      if (!monthlyMap[key]) monthlyMap[key] = { m: key, revenue: 0, count: 0, _mi: d.getFullYear() * 12 + d.getMonth() };
+      const key = MONTH_NAMES[d.getMonth()] + " " + String(d.getFullYear()).slice(-2);
+      if (!monthlyMap[key]) monthlyMap[key] = { m: key, revenue: 0, count: 0 };
       monthlyMap[key].revenue += parseMoney(r["Contract Total"] || r["Quote Total"]);
       monthlyMap[key].count += 1;
     });
     const liveMonthly = Object.values(monthlyMap)
-      .sort((a, b) => a._mi - b._mi)
-      .map(({ _mi, ...rest }) => ({ ...rest, revenue: Math.round(rest.revenue), aov: rest.count > 0 ? Math.round(rest.revenue / rest.count) : 0 }));
+      .sort((a, b) => monthIndex(a.m) - monthIndex(b.m))
+      .map(rest => ({ ...rest, revenue: Math.round(rest.revenue), aov: rest.count > 0 ? Math.round(rest.revenue / rest.count) : 0 }));
 
     return {
       todayData: dayMetrics(today),
@@ -200,21 +244,12 @@ async function fetchLiveGSPData() {
         newProject: yearRows.filter(r => r["Status"] === "New Project").length,
       },
       liveMonthly,
+      exportInfo,
     };
   } catch (err) {
     console.error("Live data fetch failed, using defaults:", err);
     return null;
   }
-}
-
-async function fetchWPFormsCount() {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${WPFORMS_SHEET_ID}/gviz/tq?tqx=out:csv`;
-    const resp = await fetch(url);
-    if (!resp.ok) return 0;
-    const rows = parseCSV(await resp.text());
-    return rows.length;
-  } catch { return 0; }
 }
 
 // ── Default / Fallback Data (used before live data loads) ──
@@ -317,19 +352,6 @@ const monthlyData = [
   { m: "Feb 26", revenue: 52870, count: 46, aov: 1149 },
   { m: "Mar 26", revenue: 70485, count: 61, aov: 1156 },
   { m: "Apr 26", revenue: 8212, count: 15, aov: 547 },
-];
-
-const yearlyData = [
-  { year: "2023", revenue: 214370, count: 345, aov: 621 },
-  { year: "2024", revenue: 417809, count: 626, aov: 667 },
-  { year: "2025", revenue: 653367, count: 784, aov: 833 },
-  { year: "2026 YTD", revenue: 196803, count: 169, aov: 1165 },
-];
-
-const yoyGrowth = [
-  { year: "2024", growth: 94.9, revenue: 417809 },
-  { year: "2025", growth: 56.4, revenue: 653367 },
-  { year: "2026 (Proj.)", growth: 12.2, revenue: 732992 },
 ];
 
 const countyData = [
@@ -776,6 +798,17 @@ const ChartCard = ({ children, style = {} }) => (
   }}>{children}</div>
 );
 
+const StaleNote = ({ children, style = {} }) => (
+  <div style={{
+    display: "flex", alignItems: "flex-start", gap: 10, background: COLORS.orangeLight,
+    border: `1px solid ${COLORS.orange}40`, color: "#9a3412", borderRadius: 10,
+    padding: "10px 14px", fontSize: 13, lineHeight: 1.45, ...style,
+  }}>
+    <Clock size={16} color={COLORS.orange} style={{ flexShrink: 0, marginTop: 1 }} />
+    <div>{children}</div>
+  </div>
+);
+
 const SectionTitle = ({ children }) => (
   <h3 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 20px" }}>{children}</h3>
 );
@@ -904,14 +937,50 @@ export default function Dashboard() {
 
   const effectiveMonthlyData = useMemo(() => {
     if (!liveData?.liveMonthly?.length) return monthlyData;
-    const liveMap = {};
-    liveData.liveMonthly.forEach(m => { liveMap[m.m] = m; });
-    const result = monthlyData.map(m => liveMap[m.m] || m);
-    liveData.liveMonthly.forEach(m => {
-      if (!monthlyData.find(h => h.m === m.m)) result.push(m);
-    });
-    return result;
+    const history = monthlyData.filter(m => monthIndex(m.m) < LIVE_MONTHS_FROM);
+    const live = liveData.liveMonthly.filter(m => monthIndex(m.m) >= LIVE_MONTHS_FROM);
+    return [...history, ...live];
   }, [liveData]);
+
+  // ── Year cards: totals per year from the monthly data; the latest year is
+  // compared with the same months of the year before ──
+  const yearCards = useMemo(() => {
+    const byYear = {};
+    effectiveMonthlyData.forEach(m => {
+      const y = 2000 + parseInt(m.m.split(" ")[1]);
+      if (!byYear[y]) byYear[y] = { year: y, revenue: 0, count: 0, months: [] };
+      byYear[y].revenue += m.revenue; byYear[y].count += m.count;
+      byYear[y].months.push(m.m.split(" ")[0]);
+    });
+    const years = Object.values(byYear).sort((a, b) => a.year - b.year);
+    const latest = years[years.length - 1]?.year;
+    return years.map((y, i) => {
+      const prev = years[i - 1];
+      const isYTD = y.year === latest && y.months.length < 12;
+      let growth = null, compareLabel = null;
+      if (prev) {
+        const prevRev = isYTD
+          ? effectiveMonthlyData.filter(m => m.m.endsWith(String(prev.year).slice(-2)) && y.months.includes(m.m.split(" ")[0])).reduce((s, m) => s + m.revenue, 0)
+          : prev.revenue;
+        growth = prevRev > 0 ? Math.round((y.revenue - prevRev) / prevRev * 1000) / 10 : null;
+        compareLabel = isYTD ? `vs ${y.months[0]}–${y.months[y.months.length - 1]} ${prev.year}` : `vs ${prev.year}`;
+      }
+      return {
+        year: isYTD ? `${y.year} YTD` : String(y.year),
+        revenue: Math.round(y.revenue), count: y.count,
+        aov: y.count ? Math.round(y.revenue / y.count) : 0,
+        growth, compareLabel,
+      };
+    });
+  }, [effectiveMonthlyData]);
+
+  // ── Data freshness ──
+  const daysOld = (d) => d ? Math.floor((new Date() - d) / 86400000) : null;
+  const fmtDate = (d) => d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+  const exportDate = liveData?.exportInfo?.date || null;
+  const salesStale = exportDate ? daysOld(exportDate) > 2 : false;
+  const mktLastDate = GA4_DAILY.length ? new Date(GA4_DAILY[GA4_DAILY.length - 1].d + "T12:00:00") : null;
+  const mktStale = mktLastDate ? daysOld(mktLastDate) > 3 : false;
 
   const filteredMonthly = useMemo(() => {
     if (monthRange === "12") return effectiveMonthlyData.slice(-12);
@@ -977,6 +1046,11 @@ export default function Dashboard() {
               <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#FFFFFF" }}>Business Dashboard</h1>
               <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, margin: "2px 0 0" }}>
                 {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                {exportDate && (
+                  <span style={{ marginLeft: 10, color: salesStale ? "#fdba74" : "rgba(255,255,255,0.55)" }}>
+                    · Sales data as of {fmtDate(exportDate)}
+                  </span>
+                )}
               </p>
             </div>
           <button onClick={handleRefresh} disabled={refreshing} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "8px 16px", color: "#fff", cursor: refreshing ? "wait" : "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, opacity: refreshing ? 0.6 : 1, transition: "all 0.2s", marginLeft: 8 }}>
@@ -1003,6 +1077,12 @@ export default function Dashboard() {
         {/* OVERVIEW TAB */}
         {activeTab === "Overview" && (
           <>
+            {salesStale && (
+              <StaleNote style={{ marginBottom: 20 }}>
+                <strong>Sales numbers are from the Goodshuffle export of {fmtDate(exportDate)}</strong> ({daysOld(exportDate)} days ago).
+                {" "}Today and This Week will show zeros until a newer export is pasted into the Master GSP sheet.
+              </StaleNote>
+            )}
             {/* ══════════════════ TODAY ══════════════════ */}
             <div style={{ marginBottom: 8 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Today</h2>
@@ -1058,23 +1138,26 @@ export default function Dashboard() {
             {/* YoY Growth Cards */}
             <SectionTitle>Year-over-Year Growth</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 32 }}>
-              {yearlyData.map((y, i) => (
+              {yearCards.map((y) => (
                 <ChartCard key={y.year}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <div style={{ color: COLORS.textMuted, fontSize: 13, fontWeight: 600 }}>{y.year}</div>
                       <div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{fmtFull(y.revenue)}</div>
-                      <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>{y.count} projects · ${y.aov} AOV</div>
+                      <div style={{ color: COLORS.textMuted, fontSize: 13, marginTop: 4 }}>{y.count} projects · {fmtFull(y.aov)} AOV</div>
                     </div>
-                    {i > 0 && (
-                      <div style={{
-                        background: `${yoyGrowth[i-1]?.growth >= 0 ? COLORS.green : COLORS.red}15`,
-                        color: yoyGrowth[i-1]?.growth >= 0 ? COLORS.green : COLORS.red,
-                        padding: "6px 12px", borderRadius: 8, fontWeight: 700, fontSize: 14,
-                        display: "flex", alignItems: "center", gap: 4,
-                      }}>
-                        {yoyGrowth[i-1]?.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                        {i === 3 ? "+12.2% proj." : `${yoyGrowth[i-1]?.growth >= 0 ? "+" : ""}${yoyGrowth[i-1]?.growth}%`}
+                    {y.growth !== null && (
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{
+                          background: `${y.growth >= 0 ? COLORS.green : COLORS.red}15`,
+                          color: y.growth >= 0 ? COLORS.green : COLORS.red,
+                          padding: "6px 12px", borderRadius: 8, fontWeight: 700, fontSize: 14,
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                        }}>
+                          {y.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                          {`${y.growth >= 0 ? "+" : ""}${y.growth}%`}
+                        </div>
+                        <div style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 4 }}>{y.compareLabel}</div>
                       </div>
                     )}
                   </div>
@@ -1276,13 +1359,13 @@ export default function Dashboard() {
               <ChartCard>
                 <SectionTitle>Yearly Sales Comparison</SectionTitle>
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={yearlyData}>
+                  <BarChart data={yearCards}>
                     <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} />
                     <XAxis dataKey="year" tick={{ fill: COLORS.textMuted, fontSize: 12 }} />
                     <YAxis tick={{ fill: COLORS.textMuted, fontSize: 11 }} tickFormatter={(v) => fmt(v)} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="revenue" name="Sales" radius={[6, 6, 0, 0]}>
-                      {yearlyData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
+                      {yearCards.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -1391,7 +1474,14 @@ export default function Dashboard() {
                 {mkt.dateLabel} · {mkt.rangeDays} day{mkt.rangeDays !== 1 ? "s" : ""} (vs prior period)
               </span>
             </div>
-            <p style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 8 }}>Windsor.ai data covers {GA4_DAILY[0]?.d} to {GA4_DAILY[GA4_DAILY.length - 1]?.d}</p>
+            {mktStale ? (
+              <StaleNote style={{ marginBottom: 24 }}>
+                <strong>Marketing numbers stop at {fmtDate(mktLastDate)}</strong> ({daysOld(mktLastDate)} days ago).
+                {" "}Everything below covers Windsor.ai data from {fmtDate(new Date(GA4_DAILY[0].d + "T12:00:00"))} to {fmtDate(mktLastDate)}. "Last 7/14/30 days" means the last days in that window, not this week.
+              </StaleNote>
+            ) : (
+              <p style={{ color: COLORS.textMuted, fontSize: 11, marginTop: 8 }}>Windsor.ai data covers {GA4_DAILY[0]?.d} to {GA4_DAILY[GA4_DAILY.length - 1]?.d}</p>
+            )}
 
             {/* ── Website Traffic KPIs ── */}
             <BrandedSection logo={<GA4Logo />} title="Website Traffic" subtitle="Google Analytics 4 · theeventrentalguys.com" borderColor="#F9AB00" />
@@ -1758,7 +1848,7 @@ export default function Dashboard() {
           textAlign: "center", color: COLORS.textMuted, fontSize: 11, marginTop: 40, paddingTop: 20,
           borderTop: `1px solid ${COLORS.cardBorder}`,
         }}>
-          The Event Rental Guys · Business Dashboard · Data: Windsor.ai (GA4 · Google Ads · Search Console) + Goodshuffle Pro · Feb 2023 – May 2026
+          The Event Rental Guys · Business Dashboard · Data: Goodshuffle Pro (Jan 2023 – {exportDate ? fmtDate(exportDate) : "Apr 2026"}) · Windsor.ai — GA4, Google Ads, Search Console (through {fmtDate(mktLastDate)})
         </div>
       </div>
     </div>
