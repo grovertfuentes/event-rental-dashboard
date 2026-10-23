@@ -16,7 +16,8 @@ export function validateEmailCounts(value) {
   for (const row of value.days) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date) || Number.isNaN(Date.parse(`${row.date}T12:00:00Z`)) || shift(row.date, 0) !== row.date || seen.has(row.date)) throw new Error("Invalid or duplicate date");
     seen.add(row.date);
-    if (!["complete", "partial"].includes(row.status) || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(row.asOf) || !Number.isFinite(Date.parse(row.asOf))) throw new Error("Invalid verification status");
+    if (!["complete", "current", "partial"].includes(row.status) || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(row.asOf) || !Number.isFinite(Date.parse(row.asOf))) throw new Error("Invalid verification status");
+    if (row.status === "current" && localDay(new Date(row.asOf)) !== row.date) throw new Error("Current snapshot must match scan day");
     if (localDay(new Date(row.asOf)) < row.date) throw new Error("Scan precedes reporting day");
     for (const key of ["wishlists", "forms"]) if (!Number.isSafeInteger(row[key]) || row[key] < 0) throw new Error("Invalid email count");
   }
@@ -38,7 +39,7 @@ export function applyEmailCounts(base, feed, now = new Date()) {
   const rows = new Map((feed?.days ?? []).map(row => [row.date, row]));
   const day = date => {
     const row = date <= today ? rows.get(date) : null;
-    return { wishlists: row?.wishlists ?? null, forms: row?.forms ?? null, emailPartial: row?.status !== "complete" };
+    return { wishlists: row?.wishlists ?? null, forms: row?.forms ?? null, emailPartial: !row || row.status === "partial" };
   };
   const week = start => {
     const elapsed = Array.from({ length: 7 }, (_, i) => shift(start, i)).filter(date => date <= today).map(day);

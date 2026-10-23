@@ -41,3 +41,14 @@ test("complete elapsed week can show exact zero", () => {
   assert.equal(result.weekTotals.forms, 0);
   assert.equal(result.weekTotals.emailPartial, false);
 });
+test("fully enumerated current snapshots support weekly comparisons without inventing future activity", () => {
+  const days = Array.from({ length: 12 }, (_, i) => ({ ...row, date: new Date(Date.UTC(2026, 9, 12 + i)).toISOString().slice(0, 10), forms: i < 7 ? 2 : 3, wishlists: 1, status: i === 11 ? "current" : "complete" }));
+  const result = applyEmailCounts(base, validateEmailCounts(feed(days)), new Date(row.asOf));
+  assert.equal(result.weekTotals.forms, 15);
+  assert.equal(result.lastWeekTotals.forms, 14);
+  assert.equal(result.weekTotals.emailPartial, false);
+  assert.equal(result.lastWeekTotals.emailPartial, false);
+  assert.equal(result.todayData.forms, 3);
+  assert.equal(result.weekData[5].forms, null);
+  assert.throws(() => validateEmailCounts(feed([{ ...row, date: "2026-10-22", status: "current" }])));
+});
