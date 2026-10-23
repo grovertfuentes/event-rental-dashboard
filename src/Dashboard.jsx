@@ -918,6 +918,13 @@ export default function Dashboard() {
     topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
   } = applyEmailCounts(liveData ?? GSP_DEFAULTS, emailCounts);
 
+  // Future days stay empty instead of suggesting zero completed activity.
+  const nyWeekday = new Intl.DateTimeFormat("en-US", { timeZone: EMAIL_TIME_ZONE, weekday: "short" }).format(new Date());
+  const elapsedDayIndex = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(nyWeekday);
+  const dailyChartData = weekData.map((day, index) => index <= elapsedDayIndex ? day : {
+    ...day, wishlists: null, forms: null, quotesCreated: null, quotesSent: null, contracts: null, sales: null,
+  });
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -1116,24 +1123,41 @@ export default function Dashboard() {
 
             {/* ══════════════════ DIVIDER ══════════════════ */}
             <div style={{ borderTop: `1px solid ${COLORS.cardBorder}`, marginBottom: 32 }} />
-            {/* Daily Breakdown Chart */}
+            {/* Daily activity and sales use separate scales. */}
             <ChartCard style={{ marginBottom: 24 }}>
               <SectionTitle>Daily Breakdown — This Week</SectionTitle>
-              <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={weekData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} />
-                  <XAxis dataKey="day" tick={{ fill: COLORS.textMuted, fontSize: 12 }} />
-                  <YAxis yAxisId="left" tick={{ fill: COLORS.textMuted, fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fill: COLORS.textMuted, fontSize: 11 }} tickFormatter={(v) => fmt(v)} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar yAxisId="left" dataKey="wishlists" name="Wishlists Received" fill={COLORS.purple} radius={[4, 4, 0, 0]} barSize={14} />
-                  <Bar yAxisId="left" dataKey="forms" name="Forms Received" fill={COLORS.cyan} radius={[4, 4, 0, 0]} barSize={14} />
-                  <Bar yAxisId="left" dataKey="quotesCreated" name="Quotes Created" fill={COLORS.green} radius={[4, 4, 0, 0]} barSize={14} />
-                  <Bar yAxisId="left" dataKey="quotesSent" name="Quotes Sent" fill={COLORS.orange} radius={[4, 4, 0, 0]} barSize={12} />
-                  <Bar yAxisId="left" dataKey="contracts" name="Contracts Signed" fill={COLORS.accentDark} radius={[4, 4, 0, 0]} barSize={12} />
-                  <Line yAxisId="right" type="monotone" dataKey="sales" name="Total Sales ($)" stroke={COLORS.blue} strokeWidth={2.5} dot={{ r: 4, fill: COLORS.blue }} />
-                </ComposedChart>
+              <p style={{ color: COLORS.textMuted, fontSize: 13, margin: "-4px 0 20px" }}>
+                Each column combines the day's activity. Counts represent actions, so a project may appear in more than one category.
+              </p>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={dailyChartData} margin={{ top: 12, right: 20, left: 0, bottom: 8 }} barCategoryGap="32%">
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={COLORS.cardBorder} />
+                  <XAxis dataKey="day" tick={{ fill: COLORS.textMuted, fontSize: 12 }} axisLine={false} tickLine={false} tickMargin={10} />
+                  <YAxis allowDecimals={false} tick={{ fill: COLORS.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={44} />
+                  <Tooltip cursor={{ fill: COLORS.accentLight, fillOpacity: 0.45 }} formatter={(value, name) => [Number(value).toLocaleString("en-US"), name]} contentStyle={{ borderRadius: 10, border: `1px solid ${COLORS.cardBorder}`, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 14 }} />
+                  <Bar stackId="activity" dataKey="wishlists" name="Wishlists Received" fill={COLORS.purple} maxBarSize={52} />
+                  <Bar stackId="activity" dataKey="forms" name="Forms Received" fill={COLORS.cyan} maxBarSize={52} />
+                  <Bar stackId="activity" dataKey="quotesCreated" name="Quotes Created" fill={COLORS.green} maxBarSize={52} />
+                  <Bar stackId="activity" dataKey="quotesSent" name="Quotes Sent" fill={COLORS.orange} maxBarSize={52} />
+                  <Bar stackId="activity" dataKey="contracts" name="Contracts Signed" fill={COLORS.accentDark} radius={[5, 5, 0, 0]} maxBarSize={52} />
+                </BarChart>
               </ResponsiveContainer>
+              <div style={{ borderTop: `1px solid ${COLORS.cardBorder}`, marginTop: 24, paddingTop: 24 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, color: COLORS.text, fontSize: 14, fontWeight: 600 }}>Daily Sales</h3>
+                  <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Sales in dollars</span>
+                </div>
+                <ResponsiveContainer width="100%" height={190}>
+                  <LineChart data={dailyChartData} margin={{ top: 12, right: 20, left: 0, bottom: 8 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={COLORS.cardBorder} />
+                    <XAxis dataKey="day" tick={{ fill: COLORS.textMuted, fontSize: 12 }} axisLine={false} tickLine={false} tickMargin={10} />
+                    <YAxis tick={{ fill: COLORS.textMuted, fontSize: 11 }} tickFormatter={fmt} axisLine={false} tickLine={false} width={64} domain={[0, "auto"]} />
+                    <Tooltip formatter={(value) => [fmtFull(value), "Total Sales"]} contentStyle={{ borderRadius: 10, border: `1px solid ${COLORS.cardBorder}`, boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }} />
+                    <Line type="linear" dataKey="sales" name="Total Sales" stroke={COLORS.blue} strokeWidth={3} dot={{ r: 4, fill: COLORS.cardBg, strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </ChartCard>
 
             {/* YoY Growth Cards */}
