@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { applyCommunications, fetchCommunications } from "./communications.js";
 import { applyEmailCounts, displayEmailCount, fetchEmailCounts, EMAIL_TIME_ZONE } from "./emailCounts.js";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -6,7 +7,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, DollarSign, FileText, Calendar, Users,
-  Clock, CreditCard, MapPin, BarChart3, Activity, ClipboardList, PenTool, Send, Wallet
+  Clock, CreditCard, MapPin, BarChart3, Activity, ClipboardList, Send, Wallet, Mail, PhoneIncoming, PhoneCall, PhoneMissed, Voicemail
 } from "lucide-react";
 
 const LOGO_URL = "https://theeventrentalguys.com/wp-content/uploads/2026/05/allwhite_transparent_HiRes.webp";
@@ -665,7 +666,7 @@ const fmtFull = (n) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 // ── Components ──
-const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency, emailPartial = false, comparePartial = false }) => {
+const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency, emailPartial = false, comparePartial = false, lowerIsBetter = false }) => {
   const numVal = isCurrency ? (typeof value === "number" ? value : parseFloat(String(value).replace(/[$,]/g, ""))) : value;
   const comparable = numVal != null && compareValue != null && !emailPartial && !comparePartial;
   const diff = numVal - compareValue;
@@ -689,7 +690,7 @@ const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
           <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.text }}>{isCurrency ? fmtFull(numVal) : displayEmailCount(numVal, emailPartial)}</span>
           {comparable && !isEqual && (
-            <span style={{ fontSize: 13, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: isUp !== lowerIsBetter ? COLORS.green : COLORS.red }}>
               {isUp ? "▲" : "▼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
             </span>
           )}
@@ -716,14 +717,14 @@ const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color
       background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14,
       padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", position: "relative",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: colorLight, borderRadius: 8, padding: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon size={16} color={color} />
           </div>
           <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginLeft: "auto" }}>
           <span style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{isCurrency ? total : displayEmailCount(total, emailPartial)}</span>
           {comparable && !isEqual && (
             <span style={{ fontSize: 12, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
@@ -907,30 +908,33 @@ export default function Dashboard() {
   // ── Live data from Google Sheets ──
   const [liveData, setLiveData] = useState(null);
   const [emailCounts, setEmailCounts] = useState(null);
+  const [communications, setCommunications] = useState(null);
   useEffect(() => {
     fetchLiveGSPData().then(data => { if (data) setLiveData(data); });
     fetchEmailCounts().then(setEmailCounts);
+    fetchCommunications().then(setCommunications);
   }, []);
 
   // Destructure live data (or fall back to hardcoded defaults defined above)
   const {
-    todayData, yesterdayData, weekData, weekTotals, lastWeekTotals,
+    todayData, yesterdayData, weekData, weekTotals, lastWeekTotals, phone,
     topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
-  } = applyEmailCounts(liveData ?? GSP_DEFAULTS, emailCounts);
+  } = applyCommunications(applyEmailCounts(liveData ?? GSP_DEFAULTS, emailCounts), communications);
 
   // Future days stay empty instead of suggesting zero completed activity.
   const nyWeekday = new Intl.DateTimeFormat("en-US", { timeZone: EMAIL_TIME_ZONE, weekday: "short" }).format(new Date());
   const elapsedDayIndex = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(nyWeekday);
   const dailyChartData = weekData.map((day, index) => index <= elapsedDayIndex ? day : {
-    ...day, wishlists: null, forms: null, quotesCreated: null, quotesSent: null, contracts: null, sales: null,
+    ...day, wishlists: null, forms: null, directEmails: null, inquiries: null, quotesCreated: null, quotesSent: null, contracts: null, sales: null,
   });
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const [data, counts] = await Promise.all([fetchLiveGSPData(), fetchEmailCounts()]);
+      const [data, counts, comms] = await Promise.all([fetchLiveGSPData(), fetchEmailCounts(), fetchCommunications()]);
       if (data) setLiveData(data);
       setEmailCounts(counts);
+      setCommunications(comms);
     } finally {
       setRefreshing(false);
     }
@@ -1098,13 +1102,15 @@ export default function Dashboard() {
                 {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
               </p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 14, marginBottom: 32 }}>
-              <TodayCard icon={ClipboardList} label="Wishlists Received" value={todayData.wishlists} compareValue={yesterdayData.wishlists} emailPartial={todayData.emailPartial} comparePartial={yesterdayData.emailPartial} compareLabel="Yesterday" color={COLORS.purple} colorLight={COLORS.purpleLight} />
-              <TodayCard icon={FileText} label="Forms Received" value={todayData.forms} compareValue={yesterdayData.forms} emailPartial={todayData.emailPartial} comparePartial={yesterdayData.emailPartial} compareLabel="Yesterday" color={COLORS.cyan} colorLight="#cffafe" />
-              <TodayCard icon={PenTool} label="Quotes Created" value={todayData.quotesCreated} compareValue={yesterdayData.quotesCreated} compareLabel="Yesterday" color={COLORS.green} colorLight={COLORS.greenLight} />
-              <TodayCard icon={Send} label="Quotes Sent" value={todayData.quotesSent} compareValue={yesterdayData.quotesSent} compareLabel="Yesterday" color={COLORS.orange} colorLight={COLORS.orangeLight} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 14 }}>
               <TodayCard icon={CreditCard} label="Contracts Signed" value={todayData.contracts} compareValue={yesterdayData.contracts} compareLabel="Yesterday" color={COLORS.accentDark} colorLight={COLORS.accentLight} />
               <TodayCard icon={DollarSign} label="Total Sales" value={todayData.totalSales} compareValue={yesterdayData.totalSales} compareLabel="Yesterday" color={COLORS.blue} colorLight={COLORS.blueLight} isCurrency />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14, marginBottom: 32 }}>
+              <TodayCard icon={Send} label="Quotes Sent" value={todayData.quotesSent} compareValue={yesterdayData.quotesSent} compareLabel="Yesterday" color={COLORS.orange} colorLight={COLORS.orangeLight} />
+              <TodayCard icon={ClipboardList} label="Wishlists Received" value={todayData.wishlists} compareValue={yesterdayData.wishlists} emailPartial={todayData.emailPartial} comparePartial={yesterdayData.emailPartial} compareLabel="Yesterday" color={COLORS.purple} colorLight={COLORS.purpleLight} />
+              <TodayCard icon={FileText} label="Forms Received" value={todayData.forms} compareValue={yesterdayData.forms} emailPartial={todayData.emailPartial} comparePartial={yesterdayData.emailPartial} compareLabel="Yesterday" color={COLORS.cyan} colorLight="#cffafe" />
+              <TodayCard icon={Mail} label="Direct Email Inquiries" value={todayData.directEmails} compareValue={yesterdayData.directEmails} compareLabel="Yesterday" color={COLORS.orange} colorLight={COLORS.orangeLight} />
             </div>
 
             {/* ══════════════════ THIS WEEK ══════════════════ */}
@@ -1112,22 +1118,33 @@ export default function Dashboard() {
               <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>This Week</h2>
               <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>{getWeekRange()}</p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 14, marginBottom: 40 }}>
-              <WeekCard icon={ClipboardList} label="Wishlists Received" total={weekTotals.wishlists} compareTotal={lastWeekTotals.wishlists} emailPartial={weekTotals.emailPartial} comparePartial={lastWeekTotals.emailPartial} data={weekData} dataKey="wishlists" color={COLORS.purple} colorLight={COLORS.purpleLight} />
-              <WeekCard icon={FileText} label="Forms Received" total={weekTotals.forms} compareTotal={lastWeekTotals.forms} emailPartial={weekTotals.emailPartial} comparePartial={lastWeekTotals.emailPartial} data={weekData} dataKey="forms" color={COLORS.cyan} colorLight="#cffafe" />
-              <WeekCard icon={PenTool} label="Quotes Created" total={weekTotals.quotesCreated} compareTotal={lastWeekTotals.quotesCreated} data={weekData} dataKey="quotesCreated" color={COLORS.green} colorLight={COLORS.greenLight} />
-              <WeekCard icon={Send} label="Quotes Sent" total={weekTotals.quotesSent} compareTotal={lastWeekTotals.quotesSent} data={weekData} dataKey="quotesSent" color={COLORS.orange} colorLight={COLORS.orangeLight} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 40 }}>
               <WeekCard icon={CreditCard} label="Contracts Signed" total={weekTotals.contracts} compareTotal={lastWeekTotals.contracts} data={weekData} dataKey="contracts" color={COLORS.accentDark} colorLight={COLORS.accentLight} />
               <WeekCard icon={DollarSign} label="Total Sales" total={fmtFull(weekTotals.sales)} compareTotal={lastWeekTotals.sales} data={weekData} dataKey="sales" color={COLORS.blue} colorLight={COLORS.blueLight} isCurrency />
+              <WeekCard icon={Send} label="Quotes Sent" total={weekTotals.quotesSent} compareTotal={lastWeekTotals.quotesSent} data={weekData} dataKey="quotesSent" color={COLORS.orange} colorLight={COLORS.orangeLight} />
+              <WeekCard icon={ClipboardList} label="Wishlists Received" total={weekTotals.wishlists} compareTotal={lastWeekTotals.wishlists} emailPartial={weekTotals.emailPartial} comparePartial={lastWeekTotals.emailPartial} data={weekData} dataKey="wishlists" color={COLORS.purple} colorLight={COLORS.purpleLight} />
+              <WeekCard icon={FileText} label="Forms Received" total={weekTotals.forms} compareTotal={lastWeekTotals.forms} emailPartial={weekTotals.emailPartial} comparePartial={lastWeekTotals.emailPartial} data={weekData} dataKey="forms" color={COLORS.cyan} colorLight="#cffafe" />
+              <WeekCard icon={Mail} label="Direct Email Inquiries" total={weekTotals.directEmails} compareTotal={lastWeekTotals.directEmails} data={weekData} dataKey="directEmails" color={COLORS.orange} colorLight={COLORS.orangeLight} />
             </div>
 
             {/* ══════════════════ DIVIDER ══════════════════ */}
             <div style={{ borderTop: `1px solid ${COLORS.cardBorder}`, marginBottom: 32 }} />
             {/* Daily activity and sales use separate scales. */}
             <ChartCard style={{ marginBottom: 24 }}>
-              <SectionTitle>Daily Breakdown — This Week</SectionTitle>
-              <p style={{ color: COLORS.textMuted, fontSize: 13, margin: "-4px 0 20px" }}>
-                Each column combines the day's activity. Counts represent actions, so a project may appear in more than one category.
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
+                <div>
+                  <SectionTitle>Incoming Inquiries — This Week</SectionTitle>
+                  <p style={{ color: COLORS.textMuted, fontSize: 13, margin: "-4px 0 20px" }}>Forms + Wishlists + new direct email inquiries</p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: COLORS.text }}>{displayEmailCount(weekTotals.inquiries, weekTotals.inquiryPartial)}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMuted }}>inquiries so far · Last week: {displayEmailCount(lastWeekTotals.inquiries, lastWeekTotals.inquiryPartial)}</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 4 }}>Today: {displayEmailCount(todayData.inquiries, todayData.inquiryPartial)}</div>
+                </div>
+              </div>
+              <p style={{ color: COLORS.textMuted, fontSize: 12, margin: "0 0 16px" }}>
+                New direct requests exclude replies, existing-project conversations, vendor emails, and form or Wishlist follow-ups.
+                {" "}{communications ? `Direct email and phone data verified ${new Date(communications.asOf).toLocaleString("en-US", { timeZone: EMAIL_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}.` : "Direct email and phone data are awaiting a verified scan."}
               </p>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={dailyChartData} margin={{ top: 12, right: 20, left: 0, bottom: 8 }} barCategoryGap="32%">
@@ -1138,12 +1155,13 @@ export default function Dashboard() {
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 14 }} />
                   <Bar stackId="activity" dataKey="wishlists" name="Wishlists Received" fill={COLORS.purple} maxBarSize={52} />
                   <Bar stackId="activity" dataKey="forms" name="Forms Received" fill={COLORS.cyan} maxBarSize={52} />
-                  <Bar stackId="activity" dataKey="quotesCreated" name="Quotes Created" fill={COLORS.green} maxBarSize={52} />
-                  <Bar stackId="activity" dataKey="quotesSent" name="Quotes Sent" fill={COLORS.orange} maxBarSize={52} />
-                  <Bar stackId="activity" dataKey="contracts" name="Contracts Signed" fill={COLORS.accentDark} radius={[5, 5, 0, 0]} maxBarSize={52} />
+                  <Bar stackId="activity" dataKey="directEmails" name="New Direct Email Inquiries" fill={COLORS.orange} radius={[5, 5, 0, 0]} maxBarSize={52} />
                 </BarChart>
               </ResponsiveContainer>
-              <div style={{ borderTop: `1px solid ${COLORS.cardBorder}`, marginTop: 24, paddingTop: 24 }}>
+            </ChartCard>
+
+            <ChartCard style={{ marginBottom: 24 }}>
+              <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
                   <h3 style={{ margin: 0, color: COLORS.text, fontSize: 14, fontWeight: 600 }}>Daily Sales</h3>
                   <span style={{ color: COLORS.textMuted, fontSize: 12 }}>Sales in dollars</span>
@@ -1158,6 +1176,24 @@ export default function Dashboard() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+            </ChartCard>
+
+            <ChartCard style={{ marginBottom: 24 }}>
+              <SectionTitle>RingCentral — Calls &amp; Voicemail</SectionTitle>
+              <p style={{ color: COLORS.textMuted, fontSize: 13, margin: "-4px 0 20px" }}>
+                This week so far · {communications?.phoneScope || "Connected extension unavailable"} · Extension activity only
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
+                <TodayCard icon={PhoneIncoming} label="Incoming Calls" value={phone.thisWeek.incomingCalls} compareValue={phone.lastWeek.incomingCalls} compareLabel="Last week" color={COLORS.blue} colorLight={COLORS.blueLight} />
+                <TodayCard icon={PhoneCall} label="Answered Calls" value={phone.thisWeek.answeredCalls} compareValue={phone.lastWeek.answeredCalls} compareLabel="Last week" color={COLORS.green} colorLight={COLORS.greenLight} />
+                <TodayCard icon={PhoneMissed} label="Missed Calls" lowerIsBetter value={phone.thisWeek.missedCalls} compareValue={phone.lastWeek.missedCalls} compareLabel="Last week" color={COLORS.orange} colorLight={COLORS.orangeLight} />
+                <TodayCard icon={Voicemail} label="Voicemails" value={phone.thisWeek.voicemails} compareValue={phone.lastWeek.voicemails} compareLabel="Last week" color={COLORS.purple} colorLight={COLORS.purpleLight} />
+              </div>
+              <p style={{ color: COLORS.textMuted, fontSize: 12, margin: "16px 0 0" }}>
+                Today: {displayEmailCount(phone.today.incomingCalls)} incoming · {displayEmailCount(phone.today.answeredCalls)} answered · {displayEmailCount(phone.today.missedCalls)} missed · {displayEmailCount(phone.today.voicemails)} voicemails.
+                {" "}Answered includes calls answered elsewhere; missed includes calls routed to voicemail. Voicemails count available messages.
+                {" "}Phone activity is separate from inquiry totals because calls may concern existing projects.
+              </p>
             </ChartCard>
 
             {/* YoY Growth Cards */}

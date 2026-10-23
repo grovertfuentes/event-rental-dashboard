@@ -1,0 +1,15 @@
+# Inquiries and RingCentral
+
+Incoming inquiries are forms + Wishlists + new direct email rental requests. This is a sum of inquiry sources, not a unique-person count across channels. Calls stay separate: call logs include existing projects and cannot establish new sales inquiries on their own.
+
+Direct emails use the first received message for a new rental request in the support mailbox. Returning customers with a distinct new event count. Exclude replies, existing-project conversations, vendor offers, automated notifications, form/Wishlist follow-ups, marketplace advertising and donation solicitations. Review original message content and earlier related messages before classification; subject keywords alone are insufficient. Retain a private original-ID ledger and classification reasons. Never publish message content or customer details.
+
+The first scan enumerated 363 external support messages over Oct 12–23, read four result pages, and identified nine new direct requests after reviewing candidates and earlier mailbox history. Six were last week and three this week. Combined with the existing verified form/Wishlist feed, incoming inquiries total 64 last week and 56 this week so far. Today has seven through the respective snapshot times. Form/Wishlist and direct-email snapshots may have different scan times, shown on the dashboard.
+
+RingCentral is limited to the authenticated Leonel Fuentes extension 1, not company-wide activity. Inbound successful calls count as answered (including Answered Elsewhere); inbound unsuccessful calls count as missed (including Voicemail). Incoming = answered + missed must reconcile before publishing. Available inbound voicemail message records are counted separately and can overlap missed calls. The Message Store excludes deleted/unavailable records. Do not retrieve recordings or transcripts for these counts.
+
+`public/data/communications.json` contains only daily aggregates, New York dates, scan time, and the business extension scope. Its twelve-day baseline has 165 inbound calls, 119 answered, 46 missed, and 9 available voicemail messages. This week so far: 70 incoming, 52 answered, 18 missed, 3 voicemails. Last week: 95 incoming, 67 answered, 28 missed, 6 voicemails.
+
+At the existing 00:30 New York collection run, reconcile the previous completed day and preceding seven days using Gmail and RingCentral connectors. Verify support Gmail identity and the RingCentral extension scope, paginate mail fully and require complete phone/message windows. Deduplicate original email events and call/message IDs privately. Publish only reconciled daily aggregates, preserving dates outside the scan. If access, classification, reconciliation or enumeration fails, preserve the corresponding published source and report the blocker; never substitute zero. Use the existing validated branch/PR and Vercel build/release process. Missing source coverage shows — and suppresses incomplete inquiry totals and phone comparisons.
+
+Validation: `node --test src/emailCounts.test.js src/communications.test.js`.
