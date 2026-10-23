@@ -1,0 +1,44 @@
+/* TERG mobile-first responsive layer. Desktop presentation is unchanged. */
+*,*::before,*::after{box-sizing:border-box}
+html,body,#root{min-width:0;max-width:100%;margin:0}
+.terg-shell{min-height:100vh}
+.terg-shell button,.terg-shell input{font:inherit}
+.terg-shell button{touch-action:manipulation}
+@media(max-width:767px){
+ html{-webkit-text-size-adjust:100%}
+ .terg-shell{overflow-x:clip}
+ /* Header and top navigation */
+ .terg-shell>div>div:first-of-type{padding:12px 14px!important}
+ .terg-shell>div>div:first-of-type>div{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px!important}
+ .terg-shell>div>div:first-of-type>div>div:first-child{display:flex!important;align-items:center!important;gap:9px!important;min-width:0;flex-wrap:wrap}
+ .terg-shell>div>div:first-of-type img{height:34px!important;max-width:115px!important}
+ .terg-shell>div>div:first-of-type h1{font-size:17px!important}
+ .terg-shell>div>div:first-of-type p{font-size:11px!important;line-height:1.5}
+ .terg-shell>div>div:first-of-type>div>div:last-child{display:flex!important;width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;white-space:nowrap;gap:3px!important}
+ .terg-shell>div>div:first-of-type>div>div:last-child::-webkit-scrollbar{display:none}
+ .terg-shell>div>div:first-of-type>div>div:last-child button{flex:0 0 auto;padding:10px 13px!important;min-height:44px}
+ /* Content and cards */
+ .terg-shell>div>div:nth-of-type(2){padding:18px 14px 96px!important;max-width:100%!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="display: grid"]{min-width:0}
+ .terg-shell>div>div:nth-of-type(2) [style*="grid-template-columns: 2fr 1fr"],
+ .terg-shell>div>div:nth-of-type(2) [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:minmax(0,1fr)!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="grid-template-columns: repeat(auto-fit"]{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="grid-template-columns: repeat(2"]{gap:10px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="minmax(280px"]{grid-template-columns:minmax(0,1fr)!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="minmax(210px"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="minmax(200px"]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="overflow-x: auto"]{-webkit-overflow-scrolling:touch}
+ .terg-shell>div>div:nth-of-type(2) table{min-width:570px}
+ .terg-shell>div>div:nth-of-type(2) .recharts-responsive-container{min-width:0}
+ .terg-shell>div>div:nth-of-type(2) .recharts-legend-wrapper{max-width:100%}
+ .terg-shell>div>div:nth-of-type(2) button{min-height:36px}
+ .terg-shell>div>div:nth-of-type(2) h2{overflow-wrap:anywhere}
+ /* Auth screen fits narrow phones */
+ .terg-shell form{width:min(380px,calc(100vw - 32px))!important;padding:30px 22px!important}
+}
+@media(max-width:360px){
+ .terg-shell>div>div:nth-of-type(2) [style*="display: grid"]{grid-template-columns:minmax(0,1fr)!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .terg-shell *{scroll-behavior:auto!important;animation-duration:.01ms!important}
+}
