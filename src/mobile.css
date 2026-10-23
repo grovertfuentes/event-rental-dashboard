@@ -42,3 +42,36 @@ html,body,#root{min-width:0;max-width:100%;margin:0}
 @media(prefers-reduced-motion:reduce){
  .terg-shell *{scroll-behavior:auto!important;animation-duration:.01ms!important}
 }
+
+/* Mobile slide-out navigation */
+.terg-menu-toggle,.terg-mobile-drawer,.terg-drawer-backdrop{display:none}
+@media(max-width:767px){
+ .terg-menu-toggle{display:flex;position:fixed;top:max(12px,env(safe-area-inset-top));right:12px;z-index:105;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.3);border-radius:10px;padding:9px 12px;min-height:42px;background:#7877E6;color:#fff;font-size:12px;font-weight:650;box-shadow:0 3px 14px #17172a55}
+ .terg-menu-toggle span:first-child{font-size:20px;line-height:1}
+ .terg-drawer-backdrop{display:block;position:fixed;inset:0;background:rgba(15,20,40,.52);z-index:110}
+ .terg-mobile-drawer{display:flex;position:fixed;inset:0 auto 0 0;width:min(82vw,300px);background:#fff;z-index:111;flex-direction:column;box-shadow:12px 0 32px #10152833;transform:translateX(-110%);transition:transform .22s ease;visibility:hidden}
+ .terg-mobile-drawer.is-open{transform:translateX(0);visibility:visible}
+ .terg-drawer-head{display:flex;justify-content:space-between;align-items:center;background:#1B1A32;color:white;padding:22px 18px 18px;font-size:17px}
+ .terg-drawer-head button{border:0;background:#ffffff22;border-radius:8px;color:white;font-size:20px;width:40px;height:40px}
+ .terg-mobile-drawer nav{display:flex;flex-direction:column;gap:7px;padding:16px}
+ .terg-mobile-drawer nav button{display:flex;align-items:center;justify-content:space-between;text-align:left;border:0;border-radius:10px;padding:13px 14px;background:#f3f3f8;color:#2e3445;font-weight:650;font-size:14px;min-height:48px}
+ .terg-mobile-drawer nav button.is-active{background:#7877E6;color:white}
+ .terg-mobile-drawer small{margin:auto 18px 25px;color:#64748b;line-height:1.6}
+ /* Hide desktop tab strip only; keep branding and data refresh controls */
+ .terg-shell>div>div:first-of-type>div>div:last-child{display:none!important}
+ .terg-shell>div>div:first-of-type>div>div:first-child{padding-right:74px}
+ /* Reduce and constrain typography in all cards and tables */
+ .terg-shell>div>div:nth-of-type(2){font-size:12px;overflow-wrap:anywhere}
+ .terg-shell>div>div:nth-of-type(2) h2{font-size:14px!important;line-height:1.35}
+ .terg-shell>div>div:nth-of-type(2) h3{font-size:13px!important;line-height:1.35}
+ .terg-shell>div>div:nth-of-type(2) p{font-size:11px!important;line-height:1.5}
+ .terg-shell>div>div:nth-of-type(2) [style*="font-size: 32px"]{font-size:24px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="font-size: 28px"]{font-size:22px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="font-size: 24px"]{font-size:20px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="font-size: 13px"]{font-size:11px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="font-size: 12px"]{font-size:11px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="font-size: 11px"]{font-size:10px!important}
+ .terg-shell>div>div:nth-of-type(2) [style*="display: grid"]>*{min-width:0;max-width:100%}
+ .terg-shell>div>div:nth-of-type(2) [style*="display: flex"]>*{min-width:0}
+ .terg-shell>div>div:nth-of-type(2) table{font-size:11px!important}
+}
