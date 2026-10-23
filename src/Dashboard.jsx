@@ -861,6 +861,8 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [activeTab, setActiveTab] = useState("Overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const chooseTab = (tab) => { setActiveTab(tab); setMobileMenuOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const [monthRange, setMonthRange] = useState("12");
   const [mktPreset, setMktPreset] = useState("7d");
   const [mktFrom, setMktFrom] = useState("2026-05-03");
@@ -989,6 +991,15 @@ export default function Dashboard() {
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <button className="terg-menu-toggle" type="button" aria-label="Open page menu" aria-expanded={mobileMenuOpen} aria-controls="terg-mobile-drawer" onClick={() => setMobileMenuOpen(true)}>
+        <span aria-hidden="true">☰</span><span>Menu</span>
+      </button>
+      {mobileMenuOpen && <div className="terg-drawer-backdrop" onClick={() => setMobileMenuOpen(false)} />}
+      <aside id="terg-mobile-drawer" className={mobileMenuOpen ? "terg-mobile-drawer is-open" : "terg-mobile-drawer"} aria-hidden={!mobileMenuOpen} aria-label="Dashboard pages">
+        <div className="terg-drawer-head"><strong>TERG Dashboard</strong><button type="button" aria-label="Close page menu" onClick={() => setMobileMenuOpen(false)}>✕</button></div>
+        <nav aria-label="Mobile dashboard navigation">{tabs.map(t => <button tabIndex={mobileMenuOpen ? 0 : -1} type="button" key={t} className={activeTab === t ? "is-active" : ""} onClick={() => chooseTab(t)}>{t}<span>›</span></button>)}</nav>
+        <small>Sales and activity data are shown as of their individual source updates.</small>
+      </aside>
       {/* ── Header ── */}
       <div style={{ background: COLORS.headerBg, padding: "18px 32px" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1021,7 +1032,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: 4 }}>
             {tabs.map((t) => (
-              <button key={t} onClick={() => setActiveTab(t)} style={{
+              <button key={t} onClick={() => chooseTab(t)} style={{
                 padding: "8px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
                 background: activeTab === t ? COLORS.accent : "transparent",
                 color: activeTab === t ? "#FFFFFF" : "rgba(255,255,255,0.5)",
