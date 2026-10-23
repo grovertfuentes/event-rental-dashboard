@@ -717,14 +717,14 @@ const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color
       background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14,
       padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", position: "relative",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ background: colorLight, borderRadius: 8, padding: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon size={16} color={color} />
           </div>
           <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginLeft: "auto" }}>
           <span style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{isCurrency ? total : displayEmailCount(total, emailPartial)}</span>
           {comparable && !isEqual && (
             <span style={{ fontSize: 12, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
