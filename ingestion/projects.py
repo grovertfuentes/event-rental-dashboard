@@ -223,6 +223,10 @@ def ingest(source, state, expected_count, request_after=None, baseline=False, ye
                     'request_after': request_after.isoformat() if request_after else None}
         try:
             source = Path(source)
+            manifest['source_filename'] = source.name
+            manifest['scope'] = {'logistics_start_year': year, 'lost_excluded': True,
+                                 'view': 'All for 2026 (No Lost)',
+                                 'collector_must_verify_archived_included': True}
             if source.stat().st_size > 10_000_000:
                 raise InvalidExport('Source exceeds 10 MB limit')
             blob = source.read_bytes()
@@ -264,6 +268,7 @@ def ingest(source, state, expected_count, request_after=None, baseline=False, ye
             return manifest
         except Exception as exc:
             # Do not log customer cell contents or unexpected library exception messages.
+            manifest['status'] = 'quarantined'
             manifest['error'] = str(exc) if isinstance(exc, InvalidExport) else type(exc).__name__
             write_json(run / 'manifest.json', manifest)
             raise InvalidExport(manifest['error']) from None

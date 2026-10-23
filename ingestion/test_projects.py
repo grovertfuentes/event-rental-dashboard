@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+import projects
 from zoneinfo import ZoneInfo
 
 from projects import InvalidExport, REQUIRED, export_time, ingest, money, normalize
@@ -32,6 +34,27 @@ def fixture(count=2, timestamp='10/23/2026 @ 02:48 PM EDT', change=None):
 
 
 class IngestionTests(unittest.TestCase):
+    def test_publication_failure_keeps_old_pointer_and_quarantines(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source, state = root / 'source.csv', root / 'private'
+            source.write_bytes(fixture())
+            now = datetime(2026, 10, 23, 19, tzinfo=timezone.utc)
+            ingest(source, state, 2, baseline=True, now=now)
+            before = (state / 'latest.json').read_bytes()
+            source.write_bytes(fixture(timestamp='10/23/2026 @ 03:00 PM EDT'))
+            real_write = projects.write_json
+            def fail_pointer(path, value):
+                if path.name == 'latest.json':
+                    raise OSError('simulated disk failure')
+                real_write(path, value)
+            with patch.object(projects, 'write_json', side_effect=fail_pointer):
+                with self.assertRaises(InvalidExport):
+                    ingest(source, state, 2, now, now=now)
+            self.assertEqual((state / 'latest.json').read_bytes(), before)
+            manifests = [json.loads(p.read_text()) for p in (state / 'runs').glob('*/manifest.json')]
+            self.assertEqual(sorted(m['status'] for m in manifests), ['quarantined', 'validated'])
+
     def test_multiline_bom_money_and_old_creation_year(self):
         _, _, data = normalize(fixture(), '.csv', 2026)
         self.assertEqual(len(data), 2)
