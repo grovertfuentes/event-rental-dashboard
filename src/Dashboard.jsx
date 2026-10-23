@@ -126,9 +126,6 @@ const monthIndex = (label) => {
   return (2000 + parseInt(yy)) * 12 + MONTH_NAMES.indexOf(mon);
 };
 
-// The Goodshuffle export only holds recent projects, so older months in it are
-// incomplete. Hard-coded history is used through Mar 2026; the live sheet from Apr 2026 on.
-const LIVE_MONTHS_FROM = monthIndex("Apr 26");
 
 async function fetchLiveGSPData() {
   try {
@@ -300,48 +297,7 @@ const lastWeekTotals = {
 };
 
 // ── Historical Data ──
-const monthlyData = [
-  { m: "Jan 23", revenue: 4660, count: 1, aov: 4660 },
-  { m: "Feb 23", revenue: 2114, count: 8, aov: 264 },
-  { m: "Mar 23", revenue: 19637, count: 18, aov: 1091 },
-  { m: "Apr 23", revenue: 13221, count: 20, aov: 661 },
-  { m: "May 23", revenue: 23699, count: 37, aov: 641 },
-  { m: "Jun 23", revenue: 27287, count: 48, aov: 568 },
-  { m: "Jul 23", revenue: 19778, count: 42, aov: 471 },
-  { m: "Aug 23", revenue: 24612, count: 42, aov: 586 },
-  { m: "Sep 23", revenue: 30646, count: 34, aov: 901 },
-  { m: "Oct 23", revenue: 19014, count: 29, aov: 656 },
-  { m: "Nov 23", revenue: 24260, count: 38, aov: 638 },
-  { m: "Dec 23", revenue: 5442, count: 28, aov: 194 },
-  { m: "Jan 24", revenue: 6230, count: 15, aov: 415 },
-  { m: "Feb 24", revenue: 13125, count: 25, aov: 525 },
-  { m: "Mar 24", revenue: 42001, count: 37, aov: 1135 },
-  { m: "Apr 24", revenue: 54211, count: 65, aov: 834 },
-  { m: "May 24", revenue: 47226, count: 83, aov: 569 },
-  { m: "Jun 24", revenue: 35445, count: 55, aov: 644 },
-  { m: "Jul 24", revenue: 43887, count: 77, aov: 570 },
-  { m: "Aug 24", revenue: 52791, count: 60, aov: 880 },
-  { m: "Sep 24", revenue: 25679, count: 58, aov: 443 },
-  { m: "Oct 24", revenue: 33288, count: 44, aov: 757 },
-  { m: "Nov 24", revenue: 32762, count: 64, aov: 512 },
-  { m: "Dec 24", revenue: 31165, count: 43, aov: 725 },
-  { m: "Jan 25", revenue: 27439, count: 19, aov: 1444 },
-  { m: "Feb 25", revenue: 46365, count: 25, aov: 1855 },
-  { m: "Mar 25", revenue: 49514, count: 54, aov: 917 },
-  { m: "Apr 25", revenue: 48330, count: 58, aov: 833 },
-  { m: "May 25", revenue: 77578, count: 113, aov: 687 },
-  { m: "Jun 25", revenue: 68667, count: 69, aov: 995 },
-  { m: "Jul 25", revenue: 68243, count: 90, aov: 758 },
-  { m: "Aug 25", revenue: 67740, count: 80, aov: 847 },
-  { m: "Sep 25", revenue: 77891, count: 77, aov: 1012 },
-  { m: "Oct 25", revenue: 53776, count: 61, aov: 882 },
-  { m: "Nov 25", revenue: 32536, count: 72, aov: 452 },
-  { m: "Dec 25", revenue: 35287, count: 66, aov: 535 },
-  { m: "Jan 26", revenue: 65236, count: 47, aov: 1388 },
-  { m: "Feb 26", revenue: 52870, count: 46, aov: 1149 },
-  { m: "Mar 26", revenue: 70485, count: 61, aov: 1156 },
-  { m: "Apr 26", revenue: 8212, count: 15, aov: 547 },
-];
+
 
 const countyData = [
   { county: "Bergen", revenue: 544788, count: 840 },
@@ -662,7 +618,7 @@ const fmt = (n) => {
 };
 
 const fmtFull = (n) =>
-  Number.isFinite(n) ? `${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—";
+  Number.isFinite(n) ? "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : "—";
 
 // ── Components ──
 const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency, emailPartial = false, comparePartial = false, lowerIsBetter = false }) => {
@@ -1234,7 +1190,7 @@ export default function Dashboard() {
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 32 }}>
               <ChartCard>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <SectionTitle>Monthly Revenue</SectionTitle>
+                  <SectionTitle>Monthly Paid Sales</SectionTitle>
                   <div style={{ display: "flex", gap: 4 }}>
                     {[["6", "6M"], ["12", "12M"], ["all", "All"]].map(([val, lbl]) => (
                       <button key={val} onClick={() => setMonthRange(val)} style={{
