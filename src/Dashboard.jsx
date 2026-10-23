@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
+import { SALES_SHEETS, parseProjectCsv, deduplicateProjects, signedDay, contractCents, paidSalesMetrics } from "./paidSales.js";
 import { applyCommunications, fetchCommunications } from "./communications.js";
-import { applyEmailCounts, displayEmailCount, fetchEmailCounts, EMAIL_TIME_ZONE } from "./emailCounts.js";
+import { applyEmailCounts, displayEmailCount, fetchEmailCounts, EMAIL_TIME_ZONE, localDay } from "./emailCounts.js";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, AreaChart, PieChart, Pie, Cell, Legend
@@ -134,11 +135,20 @@ async function fetchLiveGSPData() {
     const url = `https://docs.google.com/spreadsheets/d/${GSP_SHEET_ID}/gviz/tq?tqx=out:csv`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error("GSP fetch failed");
-    const rows = parseCSV(await resp.text());
-    const exportInfo = parseExportDate(rows);
+    const csv = await resp.text();
+    const exportInfo = parseExportDate(parseCSV(csv));
+    const rows = parseProjectCsv(csv);
+    const historical = await Promise.all(SALES_SHEETS.slice(1).map(async sheet => {
+      const historyResponse = await fetch(`https://docs.google.com/spreadsheets/d/${GSP_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${sheet.gid}`);
+      if (!historyResponse.ok) throw new Error(`Cannot read ${sheet.name} sales history`);
+      return parseProjectCsv(await historyResponse.text());
+    }));
+    const allRows = deduplicateProjects([rows, ...historical]);
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayKey = localDay(now);
+    const today = new Date(`${todayKey}T00:00:00`);
+    const paidMetrics = paidSalesMetrics(allRows, todayKey);
     const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
     const monday = getMonday(today);
     const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
@@ -153,9 +163,9 @@ async function fetchLiveGSPData() {
       forms: 0, // Overlaid from verified email received dates, independently of sales.
       quotesCreated: rows.filter(r => sameDay(parseGSPDate(r["Date Created"]), targetDate)).length,
       quotesSent: rows.filter(r => sameDay(parseGSPDate(r["Last Quote Sent"]), targetDate)).length,
-      contracts: rows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["Last Signed Date"]), targetDate)).length,
-      totalSales: rows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["Last Signed Date"]), targetDate))
-        .reduce((s, r) => s + parseMoney(r["Contract Total"] || r["Quote Total"]), 0),
+      contracts: allRows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["First Signed Date"]), targetDate)).length,
+      totalSales: paidMetrics.eligibleRows.filter(r => sameDay(parseGSPDate(r["First Signed Date"]), targetDate))
+        .reduce((sum, r) => sum + contractCents(r), 0) / 100,
     });
 
     // ── Week breakdown by day ──
@@ -179,13 +189,13 @@ async function fetchLiveGSPData() {
 
     // ── Year-to-date (current year, contract signed only for revenue) ──
     const yearRows = rows.filter(r => { const d = parseGSPDate(r["Date Created"]); return d && d.getFullYear() === currentYear; });
-    const signedYear = yearRows.filter(r => r["Status"] === "Contract Signed");
+    const signedYear = paidMetrics.rows;
 
     // Top 5 clients by spend
     const clientMap = {};
     signedYear.forEach(r => {
       const n = r["Client Name"];
-      const amt = parseMoney(r["Contract Total"] || r["Quote Total"]);
+      const amt = contractCents(r) / 100;
       if (!clientMap[n]) clientMap[n] = { name: n, spend: 0, orders: 0 };
       clientMap[n].spend += amt; clientMap[n].orders += 1;
     });
@@ -196,24 +206,12 @@ async function fetchLiveGSPData() {
     // Earned vs Unearned
     const earnedRows = signedYear.filter(r => { const d = parseGSPDate(r["Logistics Start Date"]); return d && d <= today; });
     const unearnedRows = signedYear.filter(r => { const d = parseGSPDate(r["Logistics Start Date"]); return !d || d > today; });
-    const sumTotal = (arr) => arr.reduce((s, r) => s + parseMoney(r["Contract Total"] || r["Quote Total"]), 0);
+    const sumTotal = (arr) => arr.reduce((sum, r) => sum + contractCents(r), 0) / 100;
 
     const totalSigned = sumTotal(signedYear);
 
-    // ── Monthly revenue aggregation from signed contracts ──
-    const monthlyMap = {};
-    rows.forEach(r => {
-      if (r["Status"] !== "Contract Signed") return;
-      const d = parseGSPDate(r["Last Signed Date"]) || parseGSPDate(r["Date Created"]);
-      if (!d) return;
-      const key = MONTH_NAMES[d.getMonth()] + " " + String(d.getFullYear()).slice(-2);
-      if (!monthlyMap[key]) monthlyMap[key] = { m: key, revenue: 0, count: 0 };
-      monthlyMap[key].revenue += parseMoney(r["Contract Total"] || r["Quote Total"]);
-      monthlyMap[key].count += 1;
-    });
-    const liveMonthly = Object.values(monthlyMap)
-      .sort((a, b) => monthIndex(a.m) - monthIndex(b.m))
-      .map(rest => ({ ...rest, revenue: Math.round(rest.revenue), aov: rest.count > 0 ? Math.round(rest.revenue / rest.count) : 0 }));
+    // One paid, first-signing-date model supplies both tabs and every monthly chart.
+    const liveMonthly = paidMetrics.monthly;
 
     return {
       todayData: dayMetrics(today),
@@ -226,7 +224,8 @@ async function fetchLiveGSPData() {
         earned: Math.round(sumTotal(earnedRows)), earnedCount: earnedRows.length,
         unearned: Math.round(sumTotal(unearnedRows)), unearnedCount: unearnedRows.length,
       },
-      totalSales2026: Math.round(totalSigned),
+      totalSales2026: totalSigned,
+      paidContractCount: paidMetrics.count,
       totalPipeline2026: Math.round(yearRows.reduce((s, r) => s + parseMoney(r["Quote Total"]), 0)),
       gspStatusCounts: {
         contractSigned: yearRows.filter(r => r["Status"] === "Contract Signed").length,
@@ -663,12 +662,12 @@ const fmt = (n) => {
 };
 
 const fmtFull = (n) =>
-  `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  Number.isFinite(n) ? `${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—";
 
 // ── Components ──
 const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency, emailPartial = false, comparePartial = false, lowerIsBetter = false }) => {
   const numVal = isCurrency ? (typeof value === "number" ? value : parseFloat(String(value).replace(/[$,]/g, ""))) : value;
-  const comparable = numVal != null && compareValue != null && !emailPartial && !comparePartial;
+  const comparable = Number.isFinite(numVal) && Number.isFinite(compareValue) && !emailPartial && !comparePartial;
   const diff = numVal - compareValue;
   const isUp = diff > 0;
   const isEqual = diff === 0;
@@ -706,7 +705,7 @@ const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color
 const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color, colorLight, isCurrency, emailPartial = false, comparePartial = false }) => {
   const [hoveredDay, setHoveredDay] = useState(null);
   const totalNum = isCurrency ? parseFloat(String(total).replace(/[$,]/g, "")) : total;
-  const comparable = totalNum != null && compareTotal != null && !emailPartial && !comparePartial;
+  const comparable = Number.isFinite(totalNum) && Number.isFinite(compareTotal) && !emailPartial && !comparePartial;
   const diff = totalNum - compareTotal;
   const isUp = diff > 0;
   const isEqual = diff === 0;
@@ -886,8 +885,14 @@ const tabs = ["Overview", "Sales", "Marketing", "Geography", "Team"];
 
 // Bundle hardcoded defaults so the component can fall back before live data loads
 const GSP_DEFAULTS = {
-  todayData, yesterdayData, weekData, weekTotals, lastWeekTotals,
-  topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
+  topClients2026: [],
+  earnedRevenue2026: { earned: null, earnedCount: null, unearned: null, unearnedCount: null },
+  totalSales2026: null, paidContractCount: null, totalPipeline2026,
+  gspStatusCounts: { ...gspStatusCounts, contractSigned: 0 },
+  todayData: { ...todayData, totalSales: null },
+  yesterdayData: { ...yesterdayData, totalSales: null },
+  weekData: weekData.map(day => ({ ...day, sales: null, totalSales: null })),
+  weekTotals: { ...weekTotals, sales: null }, lastWeekTotals: { ...lastWeekTotals, sales: null },
 };
 
 export default function Dashboard() {
@@ -918,7 +923,7 @@ export default function Dashboard() {
   // Destructure live data (or fall back to hardcoded defaults defined above)
   const {
     todayData, yesterdayData, weekData, weekTotals, lastWeekTotals, phone,
-    topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
+    topClients2026, earnedRevenue2026, totalSales2026, paidContractCount, totalPipeline2026, gspStatusCounts,
   } = applyCommunications(applyEmailCounts(liveData ?? GSP_DEFAULTS, emailCounts), communications);
 
   // Future days stay empty instead of suggesting zero completed activity.
@@ -940,12 +945,7 @@ export default function Dashboard() {
     }
   };
 
-  const effectiveMonthlyData = useMemo(() => {
-    if (!liveData?.liveMonthly?.length) return monthlyData;
-    const history = monthlyData.filter(m => monthIndex(m.m) < LIVE_MONTHS_FROM);
-    const live = liveData.liveMonthly.filter(m => monthIndex(m.m) >= LIVE_MONTHS_FROM);
-    return [...history, ...live];
-  }, [liveData]);
+  const effectiveMonthlyData = useMemo(() => liveData?.liveMonthly ?? [], [liveData]);
 
   // ── Year cards: totals per year from the monthly data; the latest year is
   // compared with the same months of the year before ──
@@ -1082,6 +1082,10 @@ export default function Dashboard() {
         {/* OVERVIEW TAB */}
         {activeTab === "Overview" && (
           <>
+            <StaleNote style={{ marginBottom: 20 }}>
+              {liveData ? "Sales include Contract Signed projects with billing status Paid, grouped by First Signed Date. Paid status is evaluated as of the latest export." : "Loading verified paid sales. If the source cannot be read, sales stay unavailable rather than using saved estimates."}
+            </StaleNote>
+
             {salesStale && (
               <StaleNote style={{ marginBottom: 20 }}>
                 <strong>Sales numbers are from the Goodshuffle export of {fmtDate(exportDate)}</strong> ({daysOld(exportDate)} days ago).
@@ -1197,7 +1201,7 @@ export default function Dashboard() {
             </ChartCard>
 
             {/* YoY Growth Cards */}
-            <SectionTitle>Year-over-Year Growth</SectionTitle>
+            <SectionTitle>Paid Sales — Year-over-Year</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 32 }}>
               {yearCards.map((y) => (
                 <ChartCard key={y.year}>
@@ -1315,12 +1319,16 @@ export default function Dashboard() {
         {/* SALES TAB */}
         {activeTab === "Sales" && (
           <>
+            <StaleNote style={{ marginBottom: 20 }}>
+              {liveData ? "Sales include Contract Signed projects with billing status Paid, grouped by First Signed Date. Paid status is evaluated as of the latest export." : "Loading verified paid sales. If the source cannot be read, sales stay unavailable rather than using saved estimates."}
+            </StaleNote>
+
             {/* Sales vs Earned Revenue KPI Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>
               <ChartCard>
-                <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Sales (Booked)</div>
+                <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Sales (Paid Contracts)</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent, marginTop: 6 }}>{fmtFull(totalSales2026)}</div>
-                <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4 }}>{gspStatusCounts.contractSigned} contracts · 2026 YTD</div>
+                <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 4 }}>{paidContractCount ?? "—"} paid contracts · 2026 YTD</div>
               </ChartCard>
               <ChartCard>
                 <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Earned Revenue</div>
@@ -1338,9 +1346,9 @@ export default function Dashboard() {
               </ChartCard>
               <ChartCard>
                 <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Avg Order Value</div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.blue, marginTop: 6 }}>{fmtFull(Math.round(totalSales2026 / gspStatusCounts.contractSigned))}</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.blue, marginTop: 6 }}>{fmtFull(paidContractCount ? totalSales2026 / paidContractCount : (totalSales2026 == null ? null : 0))}</div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{gspStatusCounts.contractSigned} contracts · 2026 YTD</span>
+                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{paidContractCount ?? "—"} paid contracts · 2026 YTD</span>
                 </div>
               </ChartCard>
             </div>
@@ -1348,7 +1356,7 @@ export default function Dashboard() {
             {/* Sales vs Earned Revenue Chart */}
             <ChartCard style={{ marginBottom: 24 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <SectionTitle>Monthly Sales</SectionTitle>
+                <SectionTitle>Monthly Paid Sales</SectionTitle>
                 <div style={{ display: "flex", gap: 4 }}>
                   {[["6", "6M"], ["12", "12M"], ["all", "All"]].map(([val, lbl]) => (
                     <button key={val} onClick={() => setMonthRange(val)} style={{
@@ -1413,12 +1421,12 @@ export default function Dashboard() {
                       ))}
                     </tbody>
                   </table>
-                  <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 8, fontWeight: 500 }}>Source: GSP Master Sheet · 2026 YTD</div>
+                  <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 8, fontWeight: 500 }}>Source: GSP Master Sheet · Paid contracts · First Signed Date · 2026 YTD</div>
                 </div>
               </ChartCard>
 
               <ChartCard>
-                <SectionTitle>Yearly Sales Comparison</SectionTitle>
+                <SectionTitle>Yearly Paid Sales Comparison</SectionTitle>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={yearCards}>
                     <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} />
@@ -1452,11 +1460,11 @@ export default function Dashboard() {
                 <div style={{ display: "flex", justifyContent: "center", gap: 32, marginTop: 4 }}>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.green }}>{fmtFull(earnedRevenue2026.earned)}</div>
-                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Earned ({(earnedRevenue2026.earned / totalSales2026 * 100).toFixed(1)}%) · {earnedRevenue2026.earnedCount} jobs</div>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Earned ({(totalSales2026 ? (earnedRevenue2026.earned / totalSales2026 * 100).toFixed(1) : "—")}%) · {earnedRevenue2026.earnedCount} jobs</div>
                   </div>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.orange }}>{fmtFull(earnedRevenue2026.unearned)}</div>
-                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Unearned ({(earnedRevenue2026.unearned / totalSales2026 * 100).toFixed(1)}%) · {earnedRevenue2026.unearnedCount} jobs</div>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Unearned ({(totalSales2026 ? (earnedRevenue2026.unearned / totalSales2026 * 100).toFixed(1) : "—")}%) · {earnedRevenue2026.unearnedCount} jobs</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 12, textAlign: "center", fontWeight: 500 }}>Based on logistics start date from GSP</div>
@@ -1483,7 +1491,7 @@ export default function Dashboard() {
                 <div>
                   <div style={{ color: COLORS.textMuted, fontSize: 13 }}>Contracts Signed</div>
                   <div style={{ fontSize: 28, fontWeight: 700, color: COLORS.accent, marginTop: 4 }}>{fmtFull(totalSales2026)}</div>
-                  <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>{gspStatusCounts.contractSigned} contracts</div>
+                  <div style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>{paidContractCount ?? "—"} paid contracts</div>
                 </div>
                 <div>
                   <div style={{ color: COLORS.textMuted, fontSize: 13 }}>Quotes Sent</div>
