@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "timeZone": "America/New_York",
+  "asOf": "2026-10-23T20:37:05Z",
+  "phoneScope": "Leonel Fuentes · Extension 1",
+  "days": [
+    {
+      "date": "2026-10-12",
+      "directEmails": 0,
+      "incomingCalls": 19,
+      "answeredCalls": 14,
+      "missedCalls": 5,
+      "voicemails": 2
+    },
+    {
+      "date": "2026-10-13",
+      "directEmails": 2,
+      "incomingCalls": 21,
+      "answeredCalls": 13,
+      "missedCalls": 8,
+      "voicemails": 3
+    },
+    {
+      "date": "2026-10-14",
+      "directEmails": 0,
+      "incomingCalls": 13,
+      "answeredCalls": 12,
+      "missedCalls": 1,
+      "voicemails": 0
+    },
+    {
+      "date": "2026-10-15",
+      "directEmails": 2,
+      "incomingCalls": 15,
+      "answeredCalls": 10,
+      "missedCalls": 5,
+      "voicemails": 1
+    },
+    {
+      "date": "2026-10-16",
+      "directEmails": 1,
+      "incomingCalls": 21,
+      "answeredCalls": 15,
+      "missedCalls": 6,
+      "voicemails": 0
+    },
+    {
+      "date": "2026-10-17",
+      "directEmails": 1,
+      "incomingCalls": 5,
+      "answeredCalls": 3,
+      "missedCalls": 2,
+      "voicemails": 0
+    },
+    {
+      "date": "2026-10-18",
+      "directEmails": 0,
+      "incomingCalls": 1,
+      "answeredCalls": 0,
+      "missedCalls": 1,
+      "voicemails": 0
+    },
+    {
+      "date": "2026-10-19",
+      "directEmails": 0,
+      "incomingCalls": 14,
+      "answeredCalls": 11,
+      "missedCalls": 3,
+      "voicemails": 1
+    },
+    {
+      "date": "2026-10-20",
+      "directEmails": 0,
+      "incomingCalls": 8,
+      "answeredCalls": 6,
+      "missedCalls": 2,
+      "voicemails": 0
+    },
+    {
+      "date": "2026-10-21",
+      "directEmails": 0,
+      "incomingCalls": 18,
+      "answeredCalls": 15,
+      "missedCalls": 3,
+      "voicemails": 2
+    },
+    {
+      "date": "2026-10-22",
+      "directEmails": 1,
+      "incomingCalls": 10,
+      "answeredCalls": 8,
+      "missedCalls": 2,
+      "voicemails": 0
+    },
+    {
+      "date": "2026-10-23",
+      "directEmails": 2,
+      "incomingCalls": 20,
+      "answeredCalls": 12,
+      "missedCalls": 8,
+      "voicemails": 0
+    }
+  ]
+}
