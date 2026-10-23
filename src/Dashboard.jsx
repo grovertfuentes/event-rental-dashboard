@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { applyEmailCounts, displayEmailCount, fetchEmailCounts, EMAIL_TIME_ZONE } from "./emailCounts.js";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, AreaChart, PieChart, Pie, Cell, Legend
@@ -40,7 +41,6 @@ const CHART_COLORS = ["#7674B6", "#9997D0", "#16a34a", "#06b6d4", "#ec4899", "#e
 
 // ── Live Data Fetching from Google Sheets ──
 const GSP_SHEET_ID = "1FBUAn82wrX2fIjgRwWDqk1C8VES6dV_yhhuVQ9TihDI";
-const WPFORMS_SHEET_ID = "1JhCeTIUqMI23fhMzY-upoMc3nLimeJKWWp1LU9gwfmQ";
 
 function parseCSVLine(line) {
   const result = [];
@@ -117,17 +117,6 @@ function parseExportDate(rows) {
   return { date: parseGSPDate(m[1]), time: m[2] || null };
 }
 
-// WPForms entries — returns the date of each submission
-async function fetchWPFormsDates() {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${WPFORMS_SHEET_ID}/gviz/tq?tqx=out:csv`;
-    const resp = await fetch(url);
-    if (!resp.ok) return [];
-    const rows = parseCSV(await resp.text());
-    return rows.map(r => parseLooseDate(r["Date / Time"])).filter(Boolean);
-  } catch { return []; }
-}
-
 // Month label "Mar 26" → sortable month index
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const monthIndex = (label) => {
@@ -142,7 +131,7 @@ const LIVE_MONTHS_FROM = monthIndex("Apr 26");
 async function fetchLiveGSPData() {
   try {
     const url = `https://docs.google.com/spreadsheets/d/${GSP_SHEET_ID}/gviz/tq?tqx=out:csv`;
-    const [resp, formDates] = await Promise.all([fetch(url), fetchWPFormsDates()]);
+    const resp = await fetch(url);
     if (!resp.ok) throw new Error("GSP fetch failed");
     const rows = parseCSV(await resp.text());
     const exportInfo = parseExportDate(rows);
@@ -160,7 +149,7 @@ async function fetchLiveGSPData() {
     // ── Helper: count metrics for a single day ──
     const dayMetrics = (targetDate) => ({
       wishlists: 0,
-      forms: formDates.filter(d => sameDay(d, targetDate)).length,
+      forms: 0, // Overlaid from verified email received dates, independently of sales.
       quotesCreated: rows.filter(r => sameDay(parseGSPDate(r["Date Created"]), targetDate)).length,
       quotesSent: rows.filter(r => sameDay(parseGSPDate(r["Last Quote Sent"]), targetDate)).length,
       contracts: rows.filter(r => r["Status"] === "Contract Signed" && sameDay(parseGSPDate(r["Last Signed Date"]), targetDate)).length,
@@ -676,8 +665,9 @@ const fmtFull = (n) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 // ── Components ──
-const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency }) => {
+const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color, colorLight, isCurrency, emailPartial = false, comparePartial = false }) => {
   const numVal = isCurrency ? (typeof value === "number" ? value : parseFloat(String(value).replace(/[$,]/g, ""))) : value;
+  const comparable = numVal != null && compareValue != null && !emailPartial && !comparePartial;
   const diff = numVal - compareValue;
   const isUp = diff > 0;
   const isEqual = diff === 0;
@@ -697,29 +687,30 @@ const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color
       <div>
         <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
-          <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.text }}>{isCurrency ? fmtFull(numVal) : numVal}</span>
-          {!isEqual && (
+          <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.text }}>{isCurrency ? fmtFull(numVal) : displayEmailCount(numVal, emailPartial)}</span>
+          {comparable && !isEqual && (
             <span style={{ fontSize: 13, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
               {isUp ? "▲" : "▼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
             </span>
           )}
         </div>
         <div style={{ fontSize: 11, marginTop: 2, color: COLORS.textMuted }}>
-          {compareLabel}: {isCurrency ? fmtFull(compareValue) : compareValue}
+          {compareLabel}: {isCurrency ? fmtFull(compareValue) : displayEmailCount(compareValue, comparePartial)}
         </div>
       </div>
     </div>
   );
 };
 
-const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color, colorLight, isCurrency }) => {
+const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color, colorLight, isCurrency, emailPartial = false, comparePartial = false }) => {
   const [hoveredDay, setHoveredDay] = useState(null);
   const totalNum = isCurrency ? parseFloat(String(total).replace(/[$,]/g, "")) : total;
+  const comparable = totalNum != null && compareTotal != null && !emailPartial && !comparePartial;
   const diff = totalNum - compareTotal;
   const isUp = diff > 0;
   const isEqual = diff === 0;
   const pctChange = compareTotal === 0 ? (totalNum > 0 ? 100 : 0) : Math.round(Math.abs(diff) / compareTotal * 100);
-  const displayCompare = isCurrency ? fmtFull(compareTotal) : compareTotal;
+  const displayCompare = isCurrency ? fmtFull(compareTotal) : displayEmailCount(compareTotal, comparePartial);
   return (
     <div style={{
       background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14,
@@ -733,8 +724,8 @@ const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color
           <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{total}</span>
-          {!isEqual && (
+          <span style={{ fontSize: 22, fontWeight: 700, color: COLORS.text }}>{isCurrency ? total : displayEmailCount(total, emailPartial)}</span>
+          {comparable && !isEqual && (
             <span style={{ fontSize: 12, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
               {isUp ? "▲" : "▼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
             </span>
@@ -750,7 +741,7 @@ const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color
           const h = (d[dataKey] / max) * 100;
           const isToday = i === new Date().getDay() - 1;
           const isHovered = hoveredDay === i;
-          const displayVal = isCurrency ? fmtFull(d[dataKey]) : d[dataKey];
+          const displayVal = isCurrency ? fmtFull(d[dataKey]) : displayEmailCount(d[dataKey], d.emailPartial && ["wishlists", "forms"].includes(dataKey));
           return (
             <div
               key={d.day}
@@ -774,7 +765,7 @@ const WeekCard = ({ icon: Icon, label, total, compareTotal, data, dataKey, color
                 </div>
               )}
               <div style={{
-                width: "100%", height: `${Math.max(h, 4)}%`, minHeight: 3,
+                width: "100%", height: `${d[dataKey] == null ? 0 : Math.max(h, 4)}%`, minHeight: d[dataKey] == null ? 0 : 3,
                 background: isHovered ? color : (isToday ? color : `${color}40`),
                 borderRadius: 3, cursor: "pointer", transition: "background 0.15s",
               }} />
@@ -915,21 +906,24 @@ export default function Dashboard() {
 
   // ── Live data from Google Sheets ──
   const [liveData, setLiveData] = useState(null);
+  const [emailCounts, setEmailCounts] = useState(null);
   useEffect(() => {
     fetchLiveGSPData().then(data => { if (data) setLiveData(data); });
+    fetchEmailCounts().then(setEmailCounts);
   }, []);
 
   // Destructure live data (or fall back to hardcoded defaults defined above)
   const {
     todayData, yesterdayData, weekData, weekTotals, lastWeekTotals,
     topClients2026, earnedRevenue2026, totalSales2026, totalPipeline2026, gspStatusCounts,
-  } = liveData ?? GSP_DEFAULTS;
+  } = applyEmailCounts(liveData ?? GSP_DEFAULTS, emailCounts);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const data = await fetchLiveGSPData();
+      const [data, counts] = await Promise.all([fetchLiveGSPData(), fetchEmailCounts()]);
       if (data) setLiveData(data);
+      setEmailCounts(counts);
     } finally {
       setRefreshing(false);
     }
@@ -1083,6 +1077,13 @@ export default function Dashboard() {
                 {" "}Today and This Week will show zeros until a newer export is pasted into the Master GSP sheet.
               </StaleNote>
             )}
+            <StaleNote style={{ marginBottom: 20 }}>
+              <strong>Email lead counts:</strong>{" "}
+              {emailCounts?.days?.length ? (
+                <>Verified so far as of {new Date(emailCounts.days.reduce((latest, row) => row.asOf > latest ? row.asOf : latest, "")).toLocaleString("en-US", { timeZone: EMAIL_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}.</>
+              ) : "Unavailable — awaiting a verified mailbox scan."}
+              {" "}A + marks a minimum from incomplete coverage; — means unverified. Counts use New York received dates.
+            </StaleNote>
             {/* ══════════════════ TODAY ══════════════════ */}
             <div style={{ marginBottom: 8 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Today</h2>
@@ -1091,8 +1092,8 @@ export default function Dashboard() {
               </p>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 14, marginBottom: 32 }}>
-              <TodayCard icon={ClipboardList} label="Wishlists Received" value={todayData.wishlists} compareValue={yesterdayData.wishlists} compareLabel="Yesterday" color={COLORS.purple} colorLight={COLORS.purpleLight} />
-              <TodayCard icon={FileText} label="Forms Received" value={todayData.forms} compareValue={yesterdayData.forms} compareLabel="Yesterday" color={COLORS.cyan} colorLight="#cffafe" />
+              <TodayCard icon={ClipboardList} label="Wishlists Received" value={todayData.wishlists} compareValue={yesterdayData.wishlists} emailPartial={todayData.emailPartial} comparePartial={yesterdayData.emailPartial} compareLabel="Yesterday" color={COLORS.purple} colorLight={COLORS.purpleLight} />
+              <TodayCard icon={FileText} label="Forms Received" value={todayData.forms} compareValue={yesterdayData.forms} emailPartial={todayData.emailPartial} comparePartial={yesterdayData.emailPartial} compareLabel="Yesterday" color={COLORS.cyan} colorLight="#cffafe" />
               <TodayCard icon={PenTool} label="Quotes Created" value={todayData.quotesCreated} compareValue={yesterdayData.quotesCreated} compareLabel="Yesterday" color={COLORS.green} colorLight={COLORS.greenLight} />
               <TodayCard icon={Send} label="Quotes Sent" value={todayData.quotesSent} compareValue={yesterdayData.quotesSent} compareLabel="Yesterday" color={COLORS.orange} colorLight={COLORS.orangeLight} />
               <TodayCard icon={CreditCard} label="Contracts Signed" value={todayData.contracts} compareValue={yesterdayData.contracts} compareLabel="Yesterday" color={COLORS.accentDark} colorLight={COLORS.accentLight} />
@@ -1105,8 +1106,8 @@ export default function Dashboard() {
               <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>{getWeekRange()}</p>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 14, marginBottom: 40 }}>
-              <WeekCard icon={ClipboardList} label="Wishlists Received" total={weekTotals.wishlists} compareTotal={lastWeekTotals.wishlists} data={weekData} dataKey="wishlists" color={COLORS.purple} colorLight={COLORS.purpleLight} />
-              <WeekCard icon={FileText} label="Forms Received" total={weekTotals.forms} compareTotal={lastWeekTotals.forms} data={weekData} dataKey="forms" color={COLORS.cyan} colorLight="#cffafe" />
+              <WeekCard icon={ClipboardList} label="Wishlists Received" total={weekTotals.wishlists} compareTotal={lastWeekTotals.wishlists} emailPartial={weekTotals.emailPartial} comparePartial={lastWeekTotals.emailPartial} data={weekData} dataKey="wishlists" color={COLORS.purple} colorLight={COLORS.purpleLight} />
+              <WeekCard icon={FileText} label="Forms Received" total={weekTotals.forms} compareTotal={lastWeekTotals.forms} emailPartial={weekTotals.emailPartial} comparePartial={lastWeekTotals.emailPartial} data={weekData} dataKey="forms" color={COLORS.cyan} colorLight="#cffafe" />
               <WeekCard icon={PenTool} label="Quotes Created" total={weekTotals.quotesCreated} compareTotal={lastWeekTotals.quotesCreated} data={weekData} dataKey="quotesCreated" color={COLORS.green} colorLight={COLORS.greenLight} />
               <WeekCard icon={Send} label="Quotes Sent" total={weekTotals.quotesSent} compareTotal={lastWeekTotals.quotesSent} data={weekData} dataKey="quotesSent" color={COLORS.orange} colorLight={COLORS.orangeLight} />
               <WeekCard icon={CreditCard} label="Contracts Signed" total={weekTotals.contracts} compareTotal={lastWeekTotals.contracts} data={weekData} dataKey="contracts" color={COLORS.accentDark} colorLight={COLORS.accentLight} />
