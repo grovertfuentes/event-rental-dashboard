@@ -629,28 +629,28 @@ const TodayCard = ({ icon: Icon, label, value, compareValue, compareLabel, color
   const isEqual = diff === 0;
   const pctChange = compareValue === 0 ? (numVal > 0 ? 100 : 0) : Math.round(Math.abs(diff) / compareValue * 100);
   return (
-    <div style={{
+    <div className="terg-kpi-card" style={{
       background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14,
       padding: "22px 24px", display: "flex", alignItems: "center", gap: 16,
       boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
     }}>
-      <div style={{
+      <div className="terg-kpi-icon" style={{
         background: colorLight, borderRadius: 12, padding: 12,
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <Icon size={22} color={color} />
       </div>
-      <div>
-        <div style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
-          <span style={{ fontSize: 28, fontWeight: 700, color: COLORS.text }}>{isCurrency ? fmtFull(numVal) : displayEmailCount(numVal, emailPartial)}</span>
+      <div className="terg-kpi-content">
+        <div className="terg-kpi-label" style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
+        <div className="terg-kpi-value-row" style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
+          <span className="terg-kpi-value" style={{ fontSize: 28, fontWeight: 700, color: COLORS.text }}>{isCurrency ? fmtFull(numVal) : displayEmailCount(numVal, emailPartial)}</span>
           {comparable && !isEqual && (
-            <span style={{ fontSize: 13, fontWeight: 600, color: isUp !== lowerIsBetter ? COLORS.green : COLORS.red }}>
+            <span className="terg-kpi-change" style={{ fontSize: 13, fontWeight: 600, color: isUp !== lowerIsBetter ? COLORS.green : COLORS.red }}>
               {isUp ? "▲" : "▼"}{isCurrency ? `${pctChange}%` : Math.abs(diff)}
             </span>
           )}
         </div>
-        <div style={{ fontSize: 11, marginTop: 2, color: COLORS.textMuted }}>
+        <div className="terg-kpi-comparison" style={{ fontSize: 11, marginTop: 2, color: COLORS.textMuted }}>
           {compareLabel}: {isCurrency ? fmtFull(compareValue) : displayEmailCount(compareValue, comparePartial)}
         </div>
       </div>
