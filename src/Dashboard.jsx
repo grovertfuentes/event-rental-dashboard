@@ -1082,7 +1082,7 @@ export default function Dashboard() {
               {emailCounts?.days?.length ? (
                 <>Verified so far as of {new Date(emailCounts.days.reduce((latest, row) => row.asOf > latest ? row.asOf : latest, "")).toLocaleString("en-US", { timeZone: EMAIL_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}.</>
               ) : "Unavailable — awaiting a verified mailbox scan."}
-              {" "}A + marks a minimum from incomplete coverage; — means unverified. Counts use New York received dates.
+              {" "}Today and this week are totals so far; weekly comparisons use the full previous week. A + means incomplete coverage; — means unverified. Counts use New York received dates.
             </StaleNote>
             {/* ══════════════════ TODAY ══════════════════ */}
             <div style={{ marginBottom: 8 }}>
