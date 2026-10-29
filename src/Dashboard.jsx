@@ -1521,7 +1521,7 @@ export default function Dashboard() {
 
             {/* ── Website Traffic KPIs ── */}
             <BrandedSection logo={<GA4Logo />} title="Website Traffic" subtitle="Google Analytics 4 · theeventrentalguys.com" borderColor="#F9AB00" />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+            <div className="terg-marketing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
                 { label: "Sessions", val: mkt.ga4.sessions, comp: mkt.ga4Prev.sessions, icon: Users, color: COLORS.purple, colorLight: COLORS.purpleLight },
                 { label: "Page Views", val: mkt.ga4.pageviews, comp: mkt.ga4Prev.pageviews, icon: Activity, color: COLORS.blue, colorLight: COLORS.blueLight },
@@ -1532,23 +1532,23 @@ export default function Dashboard() {
                 const pct = comp === 0 ? (val > 0 ? 100 : 0) : Math.round(Math.abs(diff) / comp * 100);
                 const isUp = diff > 0;
                 return (
-                  <ChartCard key={label}>
+                  <div className="terg-marketing-card"><ChartCard>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <div style={{ background: colorLight, borderRadius: 8, padding: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Ic size={14} color={color} />
                       </div>
                       <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                      <span style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{val.toLocaleString()}</span>
+                    <div className="terg-marketing-value-row" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <span className="terg-marketing-value" style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{val.toLocaleString()}</span>
                       {diff !== 0 && (
-                        <span style={{ fontSize: 13, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
+                        <span className="terg-marketing-change" style={{ fontSize: 13, fontWeight: 600, color: isUp ? COLORS.green : COLORS.red }}>
                           {isUp ? "▲" : "▼"}{pct}%
                         </span>
                       )}
                     </div>
                     <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Prior: {comp.toLocaleString()}</div>
-                  </ChartCard>
+                  </ChartCard></div>
                 );
               })}
             </div>
@@ -1610,7 +1610,7 @@ export default function Dashboard() {
             <div style={{ paddingTop: 24 }}>
               <BrandedSection logo={<GoogleAdsLogo />} title="Google Ads" subtitle="Account 956-015-9568 · Event Rental Guys" borderColor="#4285F4" />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+            <div className="terg-marketing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
                 { label: "Ad Spend", val: mkt.ads.spend, comp: mkt.adsPrev.spend, isCurr: true, color: COLORS.red, colorLight: COLORS.redLight, icon: DollarSign },
                 { label: "Clicks", val: mkt.ads.clicks, comp: mkt.adsPrev.clicks, isCurr: false, color: COLORS.blue, colorLight: COLORS.blueLight, icon: Activity },
@@ -1622,23 +1622,23 @@ export default function Dashboard() {
                 const isUp = diff > 0;
                 const arrowColor = invertColor ? (isUp ? COLORS.red : COLORS.green) : (isUp ? COLORS.green : COLORS.red);
                 return (
-                  <ChartCard key={label}>
+                  <div className="terg-marketing-card"><ChartCard>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <div style={{ background: colorLight, borderRadius: 8, padding: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Ic size={14} color={color} />
                       </div>
                       <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                      <span style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{isCurr ? `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : val.toLocaleString()}</span>
+                    <div className="terg-marketing-value-row" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <span className="terg-marketing-value" style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{isCurr ? `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : val.toLocaleString()}</span>
                       {diff !== 0 && (
-                        <span style={{ fontSize: 13, fontWeight: 600, color: arrowColor }}>
+                        <span className="terg-marketing-change" style={{ fontSize: 13, fontWeight: 600, color: arrowColor }}>
                           {isUp ? "▲" : "▼"}{pct}%
                         </span>
                       )}
                     </div>
                     <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Prior: {isCurr ? `$${comp.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : comp.toLocaleString()}</div>
-                  </ChartCard>
+                  </ChartCard></div>
                 );
               })}
             </div>
@@ -1685,7 +1685,7 @@ export default function Dashboard() {
             <div style={{ paddingTop: 24 }}>
               <BrandedSection logo={<SearchConsoleLogo />} title="Google Search Console" subtitle="theeventrentalguys.com · Data has a 2-day delay" borderColor="#4285F4" />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
+            <div className="terg-marketing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
               {[
                 { label: "Organic Clicks", val: mkt.sc.clicks, comp: mkt.scPrev.clicks, color: COLORS.green, colorLight: COLORS.greenLight, icon: Activity },
                 { label: "Impressions", val: mkt.sc.impressions, comp: mkt.scPrev.impressions, color: COLORS.blue, colorLight: COLORS.blueLight, icon: BarChart3 },
@@ -1697,23 +1697,23 @@ export default function Dashboard() {
                 const isUp = diff > 0;
                 const arrowColor = invertColor ? (isUp ? COLORS.red : COLORS.green) : (isUp ? COLORS.green : COLORS.red);
                 return (
-                  <ChartCard key={label}>
+                  <div className="terg-marketing-card"><ChartCard>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <div style={{ background: colorLight, borderRadius: 8, padding: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Ic size={14} color={color} />
                       </div>
                       <span style={{ color: COLORS.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                      <span style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{isPct ? `${val}%` : isDecimal ? val.toFixed(1) : val.toLocaleString()}</span>
+                    <div className="terg-marketing-value-row" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <span className="terg-marketing-value" style={{ fontSize: 26, fontWeight: 700, color: COLORS.text }}>{isPct ? `${val}%` : isDecimal ? val.toFixed(1) : val.toLocaleString()}</span>
                       {diff !== 0 && (
-                        <span style={{ fontSize: 13, fontWeight: 600, color: arrowColor }}>
+                        <span className="terg-marketing-change" style={{ fontSize: 13, fontWeight: 600, color: arrowColor }}>
                           {isUp ? "▲" : "▼"}{pct}%
                         </span>
                       )}
                     </div>
                     <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }}>Prior: {isPct ? `${comp}%` : isDecimal ? comp.toFixed(1) : comp.toLocaleString()}</div>
-                  </ChartCard>
+                  </ChartCard></div>
                 );
               })}
             </div>
