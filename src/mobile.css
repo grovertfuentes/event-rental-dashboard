@@ -123,3 +123,22 @@ html,body,#root{min-width:0;max-width:100%;margin:0}
  .terg-kpi-value{font-size:19px!important}
  .terg-kpi-change{font-size:9px!important}
 }
+
+/* Marketing KPI cards: keep each figure intact on phones, not split by global wrap rules. */
+.terg-marketing-card{min-width:0}
+@media(max-width:767px){
+ .terg-marketing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+ .terg-marketing-card{min-width:0!important;overflow:hidden}
+ .terg-marketing-card > div{padding:12px 10px!important;min-width:0!important;height:100%}
+ .terg-marketing-card .terg-marketing-value-row{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:3px!important;min-width:0}
+ .terg-marketing-card .terg-marketing-value{display:block!important;max-width:100%;font-size:clamp(17px,4.8vw,23px)!important;line-height:1.12!important;letter-spacing:-.6px!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;font-variant-numeric:tabular-nums!important}
+ .terg-marketing-card .terg-marketing-change{white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;font-size:10px!important}
+ .terg-marketing-card span{overflow-wrap:normal!important;word-break:normal!important}
+ .terg-marketing-card [style*="text-transform: uppercase"]{font-size:10px!important;letter-spacing:.15px!important}
+ .terg-marketing-card [style*="margin-top: 2px"]{font-size:10px!important}
+}
+@media(max-width:360px){
+ .terg-marketing-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .terg-marketing-card > div{padding:10px 8px!important}
+ .terg-marketing-card .terg-marketing-value{font-size:16px!important}
+}
