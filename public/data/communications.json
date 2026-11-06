@@ -1,7 +1,7 @@
 {
   "version": 1,
   "timeZone": "America/New_York",
-  "asOf": "2026-10-23T20:37:05Z",
+  "asOf": "2026-11-06T03:27:09Z",
   "phoneScope": "Leonel Fuentes · Extension 1",
   "days": [
     {
@@ -99,6 +99,70 @@
       "answeredCalls": 12,
       "missedCalls": 8,
       "voicemails": 0
+    },
+    {
+      "date": "2026-10-28",
+      "incomingCalls": 7,
+      "answeredCalls": 6,
+      "missedCalls": 1,
+      "voicemails": 0,
+      "directEmails": 0
+    },
+    {
+      "date": "2026-10-29",
+      "incomingCalls": 11,
+      "answeredCalls": 8,
+      "missedCalls": 3,
+      "voicemails": 1,
+      "directEmails": 1
+    },
+    {
+      "date": "2026-10-30",
+      "incomingCalls": 11,
+      "answeredCalls": 8,
+      "missedCalls": 3,
+      "voicemails": 2,
+      "directEmails": 0
+    },
+    {
+      "date": "2026-10-31",
+      "incomingCalls": 1,
+      "answeredCalls": 1,
+      "missedCalls": 0,
+      "voicemails": 0,
+      "directEmails": 1
+    },
+    {
+      "date": "2026-11-01",
+      "incomingCalls": 0,
+      "answeredCalls": 0,
+      "missedCalls": 0,
+      "voicemails": 0,
+      "directEmails": 0
+    },
+    {
+      "date": "2026-11-02",
+      "incomingCalls": 16,
+      "answeredCalls": 14,
+      "missedCalls": 2,
+      "voicemails": 2,
+      "directEmails": 1
+    },
+    {
+      "date": "2026-11-03",
+      "incomingCalls": 11,
+      "answeredCalls": 9,
+      "missedCalls": 2,
+      "voicemails": 1,
+      "directEmails": 0
+    },
+    {
+      "date": "2026-11-04",
+      "incomingCalls": 12,
+      "answeredCalls": 10,
+      "missedCalls": 2,
+      "voicemails": 0,
+      "directEmails": 0
     }
   ]
 }
